@@ -121595,6 +121595,20 @@
         }
       }
     },
+    "Pause sync for %lld minutes": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Synchronisierung für %lld Minuten pausieren" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Pause sync for %lld minutes" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Pausar la sincronización durante %lld minutos" } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Suspendre la synchronisation pendant %lld minutes" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sospendi la sincronizzazione per %lld minuti" } },
+        "pt-PT": { "stringUnit": { "state": "translated", "value": "Pausar a sincronização durante %lld minutos" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Приостановить синхронизацию на %lld минут" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "暂停同步 %lld 分钟" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "暫停同步 %lld 分鐘" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wstrzymaj synchronizację na %lld minut" } }
+      }
+    },
     "Pause": {
       "localizations": {
         "de": {
