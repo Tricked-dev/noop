@@ -34,6 +34,8 @@ final class HealthKitBridge: ObservableObject {
     /// Without this, a strap offload finishing during the foreground read/write pass was deferred until
     /// the next app open even though the newly-banked rows were already available locally.
     private var writeBackPending = false
+    private let writeBackUnlockGate = HealthWritebackUnlockGate(
+        availableNotification: UIApplication.protectedDataDidBecomeAvailableNotification)
     /// How many days the last COMPLETED sync covered, so an observer wake can tell whether a sync that
     /// just ran already read its window. Paired with `lastSync` (the time). Reset to 0 by a failed sync,
     /// so a failure never lets a later wake be skipped on the strength of it.
@@ -730,6 +732,13 @@ final class HealthKitBridge: ObservableObject {
         // No authorization is a successful no-op for a background task. The scheduler is cancelled by
         // its app-owned operation after observing this state, so it does not keep waking unnecessarily.
         guard auth == .authorized else { return true }
+        // Health cannot reconcile existing samples while protected data is locked. Acknowledge this
+        // background delivery without querying/retrying repeatedly; one unlock services the latest DB.
+        // Adapted from upstream #2298; retain this fork's existing HR reconciliation unchanged.
+        if writeBackUnlockGate.deferUntilAvailable(isAvailable: UIApplication.shared.isProtectedDataAvailable,
+                                                   retry: { [weak self] in
+            Task { [weak self] in await self?.writeBackAfterNewData() }
+        }) { return true }
         guard !syncing else {
             writeBackPending = true
             return true
