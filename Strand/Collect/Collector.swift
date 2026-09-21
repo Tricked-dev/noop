@@ -90,6 +90,13 @@ final class Collector {
     private var lastStdRrCensusSec: Int = 0
     private var lastRealtimeRrCensusSec: Int = 0
 
+    /// Detailed routine logs are opt-in; summaries, errors and recovery remain visible.
+    var detailedDiagnostics: () -> Bool = { TestCentre.active(.connection) }
+    private var standardSummaryAt: TimeInterval?
+    private var standardSummaryReadings = 0
+    private var standardSummaryHR = 0
+    private var standardSummaryRR = 0
+
     /// Consecutive live-persist failures per transport, and when each last reported.
     ///
     /// Kept PER TRANSPORT because the standard 0x2A37 path and the puffin REALTIME_DATA path (#1118) fail
@@ -296,11 +303,23 @@ final class Collector {
                 fromHR: hr, rr: [], contact: contact, at: ts
             ).events)
         }
-        log?(LivePersistTrace.standardHRHostReceivedLine(
-            hostUnixSeconds: ts,
-            acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,
-            rejectedHRRows: 1 - acceptedHR, rejectedRRRows: rr.count - acceptedRR.count,
-            pendingHRRows: stdHR.count, pendingRRRows: stdRR.count))
+        if detailedDiagnostics() {
+            log?(LivePersistTrace.standardHRHostReceivedLine(
+                hostUnixSeconds: ts,
+                acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,
+                rejectedHRRows: 1 - acceptedHR, rejectedRRRows: rr.count - acceptedRR.count,
+                pendingHRRows: stdHR.count, pendingRRRows: stdRR.count))
+        }
+        standardSummaryReadings += 1
+        standardSummaryHR += acceptedHR
+        standardSummaryRR += acceptedRR.count
+        let summaryNow = monotonic()
+        if standardSummaryAt == nil { standardSummaryAt = summaryNow }
+        if summaryNow - (standardSummaryAt ?? summaryNow) >= 60 {
+            log?("standard-hr summary readings=\(standardSummaryReadings) acceptedHR=\(standardSummaryHR) acceptedRR=\(standardSummaryRR)")
+            standardSummaryReadings = 0; standardSummaryHR = 0; standardSummaryRR = 0
+            standardSummaryAt = summaryNow
+        }
         if stdHR.count + stdRR.count + stdContact.count >= 30 {
             Task { @MainActor in await self.flushStandardHR(reason: .cadence) }
         }
@@ -313,8 +332,10 @@ final class Collector {
         stdHR.removeAll(keepingCapacity: true)
         stdRR.removeAll(keepingCapacity: true)
         stdContact.removeAll(keepingCapacity: true)
-        log?(LivePersistTrace.standardHRFlushAttemptLine(
-            reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count))
+        if detailedDiagnostics() {
+            log?(LivePersistTrace.standardHRFlushAttemptLine(
+                reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count))
+        }
         // #1118: census this batch BEFORE it is stored, exactly as the historical path does, so a strap
         // log carries one `ratioRep` per transport. If each transport reports ~1.0 while the stored night
         // reads 2.77, the over-count is the UNION of the transports and no single decoder is at fault —
@@ -332,11 +353,16 @@ final class Collector {
         }
         do {
             let inserted = try await store.insert(Streams(hr: hr, rr: rr, events: contact), deviceId: deviceId)
+            if stdInsertFailures > 0 {
+                log?("standard-hr persistence recovered after \(stdInsertFailures) failed inserts")
+            }
             stdInsertFailures = 0
             onBanked?(inserted)
-            log?(LivePersistTrace.standardHRFlushSucceededLine(
-                reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count,
-                insertedHRRows: inserted.hr, insertedRRRows: inserted.rr))
+            if detailedDiagnostics() {
+                log?(LivePersistTrace.standardHRFlushSucceededLine(
+                    reason: reason, offeredHRRows: hr.count, offeredRRRows: rr.count,
+                    insertedHRRows: inserted.hr, insertedRRRows: inserted.rr))
+            }
         } catch {
             stdHR.insert(contentsOf: hr, at: 0)
             stdRR.insert(contentsOf: rr, at: 0)

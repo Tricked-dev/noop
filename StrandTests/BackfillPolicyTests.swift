@@ -4,8 +4,130 @@ import XCTest
 /// `BackfillPolicy` rate-limiter, incl. the empty-streak backoff that stops an off-wrist / not-banking
 /// strap from being re-offloaded every event floor (#77/#120/#216). Pure value logic, no CoreBluetooth seam.
 final class BackfillPolicyTests: XCTestCase {
+    func testCompletedFreshHistoryDoesNotStartAnotherOffload() {
+        let now = 1_790_021_129
+        for lag in [0, 6, 299, 300] {
+            XCTAssertFalse(BackfillPolicy.phoneAllowsContinuation(completed: true, now: now,
+                                                                  frontier: now - lag))
+        }
+    }
+
+    func testDeepOrUnknownBacklogRetainsContinuation() {
+        let now = 1_790_021_129
+        for frontier: Int? in [nil, 0, now - 301, now - 3600, now - 86400] {
+            XCTAssertTrue(BackfillPolicy.phoneAllowsContinuation(completed: true, now: now,
+                                                                 frontier: frontier))
+        }
+    }
+
+    func testTimeoutDoesNotPretendTheOffloadCompleted() {
+        XCTAssertTrue(BackfillPolicy.phoneAllowsContinuation(completed: false, now: 1_000,
+                                                             frontier: 999))
+    }
+
+    func testFutureFrontierCannotCreateAnImmediateRetryLoop() {
+        XCTAssertFalse(BackfillPolicy.phoneAllowsContinuation(completed: true, now: 1_000,
+                                                              frontier: 1_100))
+    }
+
+    func testRoutineEventsCannotPostponeAStalledTransfersDeadline() {
+        var deadline = 60.0
+        for elapsed in stride(from: 0.0, through: 600.0, by: 20.0) {
+            if BackfillPolicy.extendsIdleTimeout(packetType: 48, frameIsValid: true) {
+                deadline = elapsed + 60
+            }
+        }
+        XCTAssertEqual(deadline, 60, "live events used to keep this session open indefinitely")
+    }
+
+    func testCorruptFramesNeverExtendTheDeadlineRegardlessOfClaimedType() {
+        for type in UInt8.min...UInt8.max {
+            XCTAssertFalse(BackfillPolicy.extendsIdleTimeout(packetType: type, frameIsValid: false))
+        }
+    }
+
+    func testSlowButProductiveHistoryStillExtendsTheDeadline() {
+        var deadline = 60.0
+        for (elapsed, type): (Double, UInt8) in [(45, 49), (90, 47), (135, 50), (180, 56)] {
+            XCTAssertLessThan(elapsed, deadline)
+            if BackfillPolicy.extendsIdleTimeout(packetType: type, frameIsValid: true) {
+                deadline = elapsed + 60
+            }
+        }
+        XCTAssertEqual(deadline, 240)
+        for type: UInt8 in [35, 36, 40, 43, 48] {
+            XCTAssertFalse(BackfillPolicy.extendsIdleTimeout(packetType: type, frameIsValid: true))
+        }
+    }
+
     private let fe = BackfillPolicy.eventFloorSeconds      // 90
     private let fp = BackfillPolicy.periodicFloorSeconds   // 900
+
+    func testUserStopBlocksAllAutomaticTriggersEvenWithoutPreviousSyncStamp() {
+        for trigger in [BackfillTrigger.periodic, .strap, .connect, .foreground, .autoContinue] {
+            for last: Double? in [nil, 0] {
+                XCTAssertFalse(BackfillPolicy.shouldRun(trigger: trigger, now: 1047, lastBackfillAt: last,
+                                                        userPausedUntil: 1900))
+            }
+        }
+    }
+
+    func testManualSyncResumesDuringUserPauseAndAutomaticSyncReturnsAtDeadline() {
+        XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .manual, now: 1047, lastBackfillAt: 1046,
+                                               userPausedUntil: 1900))
+        for trigger in [BackfillTrigger.periodic, .strap, .connect, .foreground, .autoContinue] {
+            XCTAssertFalse(BackfillPolicy.shouldRun(trigger: trigger, now: 1899, lastBackfillAt: 0,
+                                                    userPausedUntil: 1900))
+            XCTAssertTrue(BackfillPolicy.shouldRun(trigger: trigger, now: 1900, lastBackfillAt: 0,
+                                                   userPausedUntil: 1900))
+        }
+        XCTAssertNotEqual(BackfillPolicy.userPauseKey(deviceId: "strap-A"),
+                          BackfillPolicy.userPauseKey(deviceId: "strap-B"))
+        XCTAssertEqual(BackfillPolicy.userPauseSeconds, 900)
+    }
+
+    func testUserPauseDoesNotReplaceExistingClockOrRateLimits() {
+        XCTAssertFalse(BackfillPolicy.shouldRun(trigger: .periodic, now: 1900, lastBackfillAt: 1899,
+                                                userPausedUntil: 1900))
+        XCTAssertFalse(BackfillPolicy.shouldRun(trigger: .strap, now: 1900, lastBackfillAt: 0,
+                                                clockUntrusted: true, userPausedUntil: 1900))
+    }
+
+    func testPhoneForegroundWaitsFromLatestCompletionAndManualStillRuns() {
+        for elapsed in [0.0, 90, 899] {
+            XCTAssertFalse(BackfillPolicy.phoneAllows(trigger: .foreground, now: 1000 + elapsed,
+                lastAttempt: 900, lastCompleted: 1000, retryAfter: nil))
+        }
+        XCTAssertTrue(BackfillPolicy.phoneAllows(trigger: .foreground, now: 1900,
+            lastAttempt: 900, lastCompleted: 1000, retryAfter: nil))
+        XCTAssertTrue(BackfillPolicy.phoneAllows(trigger: .foreground, now: 1000,
+            lastAttempt: nil, lastCompleted: nil, retryAfter: nil))
+        XCTAssertTrue(BackfillPolicy.phoneAllows(trigger: .manual, now: 1001,
+            lastAttempt: 900, lastCompleted: 1000, retryAfter: 2000))
+    }
+
+    func testSuspendedTimeoutCannotImmediatelyRestartOnAnyAutomaticTrigger() {
+        // Phone log: requested at 20:58, timeout finally executes six minutes later on resume.
+        for trigger in [BackfillTrigger.foreground, .connect, .strap, .periodic, .autoContinue] {
+            XCTAssertFalse(BackfillPolicy.phoneAllows(trigger: trigger, now: 1361,
+                lastAttempt: 1000, lastCompleted: nil, retryAfter: 1540))
+        }
+        XCTAssertTrue(BackfillPolicy.phoneAllows(trigger: .connect, now: 1540,
+            lastAttempt: 1000, lastCompleted: nil, retryAfter: 1540))
+        XCTAssertNotEqual(BackfillPolicy.retryKey(deviceId: "A"), BackfillPolicy.retryKey(deviceId: "B"))
+    }
+
+    func testRoutineStrapEventsCannotTurnBatteryNotificationsIntoNinetySecondSyncs() {
+        for elapsed in [90.0, 180, 360, 899] {
+            XCTAssertFalse(BackfillPolicy.phoneAllows(trigger: .strap, now: 1000 + elapsed,
+                lastAttempt: 900, lastCompleted: 1000, retryAfter: nil))
+        }
+        XCTAssertTrue(BackfillPolicy.phoneAllows(trigger: .strap, now: 1900,
+            lastAttempt: 900, lastCompleted: 1000, retryAfter: nil))
+        // A productive backlog continues immediately; the event floor does not interrupt its drain.
+        XCTAssertTrue(BackfillPolicy.phoneAllows(trigger: .autoContinue, now: 1001,
+            lastAttempt: 900, lastCompleted: 1000, retryAfter: nil))
+    }
 
     func testFirstSyncAlwaysRuns() {
         XCTAssertTrue(BackfillPolicy.shouldRun(trigger: .periodic, now: 1000, lastBackfillAt: nil))

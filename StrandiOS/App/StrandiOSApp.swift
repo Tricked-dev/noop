@@ -49,6 +49,9 @@ struct StrandiOSApp: App {
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
 
     init() {
+        #if NOOP_SYNC_DIAGNOSTICS
+        OvernightDiagnostics.start()
+        #endif
         // #1008: pin the pre-change Overnight-only default for existing installs before
         // anything reads it. Idempotent; a no-op on fresh installs and after the first launch.
         PuffinExperiment.migrateContinuousHrvOvernightDefault()
@@ -300,6 +303,55 @@ struct StrandiOSApp: App {
                 // HealthKit-free payload. Filter on the host so other future schemes don't trip the
                 // importer; macOS never registers the scheme so this stays iOS-only.
                 .onOpenURL { url in
+                    #if NOOP_SYNC_DIAGNOSTICS
+                    if url.host == "debug-status" {
+                        let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        let snapshot: [String: Any] = [
+                            "capturedAt": Date().timeIntervalSince1970,
+                            "appState": UIApplication.shared.applicationState.rawValue,
+                            "connected": model.live.connected,
+                            "historyReady": model.live.historyReady,
+                            "backfilling": model.live.backfilling,
+                            "liveFeedActive": model.live.liveFeedActive,
+                            "batteryProbeVisible": model.live.extendedBatteryProbe != nil,
+                            "lastSyncedAt": model.live.lastSyncedAt ?? 0,
+                            "heartRate": model.live.heartRate ?? -1,
+                            "lastFrameAt": model.live.lastFrameAtUnix ?? 0,
+                            "rrPackets": model.live.rrSeq,
+                            "batteryPercent": model.live.batteryPct ?? -1
+                        ]
+                        do {
+                            let data = try JSONSerialization.data(withJSONObject: snapshot, options: [.prettyPrinted, .sortedKeys])
+                            try data.write(to: directory.appendingPathComponent("sync-debug-status.json"), options: .atomic)
+                            try model.live.exportableLogText().write(to: directory.appendingPathComponent("sync-debug.log"), atomically: true, encoding: .utf8)
+                        } catch {
+                            model.live.append(log: "Sync diagnostic export failed: \(error.localizedDescription)")
+                        }
+                        return
+                    }
+                    if url.host == "debug-clock-sync" {
+                        model.ble.debugSyncWithClockQueries()
+                        return
+                    }
+                    if url.host == "debug-live" {
+                        model.ble.startRealtime()
+                        return
+                    }
+                    if url.host == "debug-stop-live" {
+                        model.ble.stopRealtime()
+                        return
+                    }
+                    if url.host == "debug-abort" {
+                        model.ble.abortBackfill()
+                        return
+                    }
+                    if url.host == "debug-sync" {
+                        Task { @MainActor in
+                            _ = await AppModel.startStrapSyncFromShortcut()
+                        }
+                        return
+                    }
+                    #endif
                     if url.host == "import-health" {
                         model.handleHealthImportURL(url)
                     }
@@ -327,6 +379,9 @@ struct StrandiOSApp: App {
         // HealthKitBridge.sync guards on `auth == .authorized`, so the scenePhase trigger stays a
         // safe no-op until the user opts in.
         .onChange(of: scenePhase) { _, phase in
+            #if NOOP_SYNC_DIAGNOSTICS
+            model.ble.recordOvernightStatus(reason: "scene-" + String(describing: phase))
+            #endif
             if phase == .active {
                 model.drainPendingIntents(router: router)
                 // End a "Connecting…" sync island whose sync never came, rather than leave it greyed.

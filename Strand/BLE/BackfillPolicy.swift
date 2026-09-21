@@ -18,6 +18,58 @@ enum BackfillTrigger {
 /// Pure rate-limiter for historical-offload kicks. No BLE/store deps. Floors match WHOOP
 /// (observed: ~15-min periodic + expedited event syncs).
 enum BackfillPolicy {
+    /// EVENT frames share the offload route with banked records, but can also be live
+    /// battery/wrist/sync prompts. Those alone must not keep a stalled transfer alive.
+    /// Console bursts remain eligible because they can themselves be banked history.
+    static func extendsIdleTimeout(packetType: UInt8, frameIsValid: Bool) -> Bool {
+        guard frameIsValid else { return false }
+        switch packetType {
+        case 47, 49, 50, 56: return true
+        default: return false
+        }
+    }
+
+    /// A completed offload that reached the current five-minute window is caught up.
+    /// Unknown or old frontiers retain the existing deep-backlog continuation rules.
+    /// Timeout is not proof of completion and still uses those existing rules.
+    static func phoneAllowsContinuation(completed: Bool, now: Int, frontier: Int?) -> Bool {
+        guard completed, let frontier, frontier > 0 else { return true }
+        return Double(now) - Double(frontier) > 300
+    }
+
+    /// A user stop suppresses automatic restarts for one normal sync interval on iPhone.
+    static let userPauseMinutes = 15
+    static let userPauseSeconds: TimeInterval = TimeInterval(userPauseMinutes * 60)
+
+    static func userPauseKey(deviceId: String) -> String { "sync.userPausedUntil.\(deviceId)" }
+
+    static func userPauseAllows(trigger: BackfillTrigger, now: TimeInterval,
+                                pausedUntil: TimeInterval?) -> Bool {
+        if case .manual = trigger { return true }
+        guard let pausedUntil, pausedUntil.isFinite else { return true }
+        return now >= pausedUntil
+    }
+
+    static let stalledRetrySeconds: TimeInterval = 180
+    static func retryKey(deviceId: String) -> String { "sync.retryAfter.\(deviceId)" }
+
+    /// Opening a caught-up phone or receiving a routine strap event is not a manual sync request.
+    /// All EVENT frames currently request sync, including battery and realtime toggles.
+    /// A stalled transfer needs a cooldown
+    /// from its END, since suspension can delay the timeout until long after its start-based floor.
+    static func phoneAllows(trigger: BackfillTrigger, now: TimeInterval, lastAttempt: TimeInterval?,
+                            lastCompleted: TimeInterval?, retryAfter: TimeInterval?) -> Bool {
+        if case .manual = trigger { return true }
+        if let retryAfter, retryAfter.isFinite, now < retryAfter { return false }
+        switch trigger {
+        case .foreground, .strap:
+            let latest = [lastAttempt, lastCompleted].compactMap { $0 }.filter { $0.isFinite && $0 > 0 }.max()
+            if let latest { return now - latest >= periodicFloorSeconds }
+        default: break
+        }
+        return true
+    }
+
     static let periodicFloorSeconds: TimeInterval = 900   // 15 min
     static let eventFloorSeconds: TimeInterval = 90       // absorbs reconnect-flaps / event bursts
     static let emptyBackoffThreshold = 3                  // empties before the floor starts stretching
@@ -42,7 +94,9 @@ enum BackfillPolicy {
     /// `emptyStreak`, `.connect`/`.foreground`/`.manual`/`.autoContinue` are never affected.
     static func shouldRun(trigger: BackfillTrigger, now: TimeInterval,
                           lastBackfillAt: TimeInterval?, emptyStreak: Int = 0,
-                          clockUntrusted: Bool = false) -> Bool {
+                          clockUntrusted: Bool = false,
+                          userPausedUntil: TimeInterval? = nil) -> Bool {
+        guard userPauseAllows(trigger: trigger, now: now, pausedUntil: userPausedUntil) else { return false }
         guard let last = lastBackfillAt else { return true }
         let elapsed = now - last
         let backoff: Double = emptyStreak >= emptyBackoffThreshold

@@ -18,10 +18,11 @@ configFiles:
 settings:
   base:
     MARKETING_VERSION: "11.8.0"
+    OTHER_SWIFT_FLAGS: "$(inherited) -DNOOP_SYNC_DIAGNOSTICS"
     # iOS build number (CFBundleVersion). GLOBAL so the iOS app AND its widget extension inherit the
     # SAME value — they must match or iOS warns "extension version must match parent app" (#416).
     # macOS sets its own CFBundleVersion on the Strand target and is unaffected by this.
-    CURRENT_PROJECT_VERSION: "400"
+    CURRENT_PROJECT_VERSION: "424"
     SWIFT_VERSION: "5.0"
     # Emit localizable strings so Xcode auto-extracts every LocalizedStringKey into the
     # String Catalog on build (the English (US) base entries).
@@ -359,7 +360,6 @@ targets:
       # installs by riding inside its iOS companion; without this it would never reach a paired watch.
       # Build-from-source delivers it for certain; sideload install of the embedded watch app under a free
       # Apple ID is unproven (an Apple limitation), so the docs steer watch users to a source build for now.
-      - target: NOOPWatch
 
   # WidgetKit + Live Activity extension — the iOS analogue of the macOS menu-bar
   # extra. Reads a tiny snapshot the app publishes into the shared App Group.

@@ -5,6 +5,61 @@ import XCTest
 /// `ExtendedBatteryProbeFormatTest` (same fixtures, same expectations) — including the REAL WHOOP 4.0
 /// capture that resolved the issue (opcode 98 accepted, 29-byte payload, mV=3970 → 3.97 V).
 final class ExtendedBatteryProbeTests: XCTestCase {
+    func testSyntheticLivePacketCannotOpenBatteryProbeEvenWhileWaiting() {
+        // Construct the opcode collision without embedding a device capture.
+        let frame = frameFromPayload([UInt8](repeating: 0, count: 17), type: 40, seq: 1, cmd: 98)
+        XCTAssertTrue(verifyFrame(frame, family: .whoop4).ok)
+        XCTAssertEqual(frame[6], 98,
+                       "the former opcode-only dispatch mistook this timestamp byte for a response")
+        XCTAssertEqual(parseFrame(frame, family: .whoop4).typeName, "REALTIME_DATA")
+        for waiting in [false, true] {
+            XCTAssertFalse(ExtendedBatteryProbe.acceptsResponse(frame, family: .whoop4, waitingForReply: waiting))
+        }
+    }
+
+    func testProbeNeedsAnExplicitOutstandingRequestOnBothFamilies() {
+        for family: DeviceFamily in [.whoop4, .whoop5] {
+            let frame = probeResponse(family: family)
+            XCTAssertTrue(ExtendedBatteryProbe.acceptsResponse(frame, family: family, waitingForReply: true))
+            XCTAssertFalse(ExtendedBatteryProbe.acceptsResponse(frame, family: family, waitingForReply: false),
+                           "cancelled, completed or never-requested probes must remain silent")
+        }
+    }
+
+    func testCorruptOrTruncatedRepliesNeverPublishAReport() {
+        for family: DeviceFamily in [.whoop4, .whoop5] {
+            let frame = probeResponse(family: family)
+            for count in 0..<frame.count {
+                XCTAssertFalse(ExtendedBatteryProbe.acceptsResponse(Array(frame.prefix(count)), family: family,
+                                                                    waitingForReply: true))
+            }
+            for index in frame.indices {
+                var corrupt = frame
+                corrupt[index] ^= 1
+                XCTAssertFalse(ExtendedBatteryProbe.acceptsResponse(corrupt, family: family, waitingForReply: true))
+            }
+        }
+    }
+
+    func testOtherPacketsAndPendingAcknowledgementsCannotCompleteProbe() {
+        for family: DeviceFamily in [.whoop4, .whoop5] {
+            for type: UInt8 in [35, 40, 43, 47, 48, 49, 50] {
+                XCTAssertFalse(ExtendedBatteryProbe.acceptsResponse(probeResponse(family: family, type: type),
+                                                                    family: family, waitingForReply: true))
+            }
+            XCTAssertFalse(ExtendedBatteryProbe.acceptsResponse(probeResponse(family: family, result: 2),
+                                                                family: family, waitingForReply: true))
+        }
+    }
+
+    private func probeResponse(family: DeviceFamily, type: UInt8 = 36, result: UInt8 = 1) -> [UInt8] {
+        let payload: [UInt8] = [7, result, 1, 2, 3]
+        if family == .whoop5 {
+            return puffinCommandFrame(cmd: 98, seq: 8, payload: payload, type: type)
+        }
+        return frameFromPayload(payload, type: type, seq: 8, cmd: 98)
+    }
+
 
     private func hexToBytes(_ h: String) -> [UInt8] {
         let c = Array(h)

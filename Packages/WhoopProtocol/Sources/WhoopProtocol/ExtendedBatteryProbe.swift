@@ -9,6 +9,22 @@ import Foundation
 /// every CI run; the behaviour — and the output text — is byte-identical to the Kotlin formatter.
 public enum ExtendedBatteryProbe {
 
+    /// A diagnostic may consume only an intact reply to a probe the user actually requested.
+    /// Realtime timestamp bytes can equal opcode 98; an opcode match alone is not a reply.
+    public static func acceptsResponse(_ frame: [UInt8], family: DeviceFamily,
+                                       waitingForReply: Bool) -> Bool {
+        guard waitingForReply else { return false }
+        let typeOffset = family == .whoop5 ? 8 : 4
+        let commandOffset = typeOffset + 2
+        guard frame.count > commandOffset,
+              frame[typeOffset] == 0x24,
+              frame[commandOffset] == 98,
+              verifyFrame(frame, family: family).ok else { return false }
+        // PENDING acknowledges receipt; wait for the actual result instead of opening a report.
+        if frame.count > commandOffset + 6, frame[commandOffset + 2] == 2 { return false }
+        return true
+    }
+
     /// Returns the display text and the payload hex to persist for the next capture's diff (nil when there
     /// is no decodable payload). `cmdOff` is the response-command byte offset (6 on WHOOP4, 10 on 5/MG);
     /// the 4-byte CRC32 trailer both families carry is excluded from the payload. The voltage line is only

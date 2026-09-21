@@ -103,7 +103,10 @@ public enum DataRange {
     /// than restated here: the command table lives with the caller.
     public static func acceptsReply(_ frame: [UInt8], cmdOff: Int, opcode: UInt8,
                                     verdictOK: @autoclosure () -> Bool) -> Bool {
-        guard cmdOff >= 0, cmdOff < frame.count, frame[cmdOff] == opcode else { return false }
+        // A live timestamp or event number can equal the opcode. Only COMMAND_RESPONSE has
+        // a command at this offset; CRC-valid unrelated packets must never alter the history window.
+        guard cmdOff >= 2, cmdOff < frame.count,
+              frame[cmdOff - 2] == 0x24, frame[cmdOff] == opcode else { return false }
         return verdictOK()
     }
 

@@ -118,3 +118,10 @@ tools/linux-capture/*.db
 tools/linux-capture/*.db-wal
 tools/linux-capture/*.db-shm
 tools/linux-capture/captures/
+
+# Local iPhone builds, device captures, and signing material
+/output/
+*.p12
+*.pfx
+*.mobileprovision
+*.keychain-db

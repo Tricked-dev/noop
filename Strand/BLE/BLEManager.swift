@@ -587,6 +587,18 @@ public final class BLEManager: NSObject, ObservableObject {
     private var backfiller: Backfiller?
     /// True while a historical offload session is in progress (frames route to Backfiller).
     private var backfilling = false
+    #if NOOP_SYNC_DIAGNOSTICS
+    private var syncDiagnosticStarted: UInt64?
+    private var syncDiagnosticFrames: [UInt8: Int] = [:]
+    private var syncDiagnosticRejected = 0
+    private var syncDiagnosticNotifications: [CBUUID: Int] = [:]
+    private var syncDiagnosticBytes: [CBUUID: Int] = [:]
+
+    private func recordSyncDiagnostic(type: UInt8, valid: Bool) {
+        if valid { syncDiagnosticFrames[type, default: 0] += 1 }
+        else { syncDiagnosticRejected += 1 }
+    }
+    #endif
     /// Wall time of the most recent offload frame OR HISTORY_COMPLETE — drives the #174 deep-packet
     /// cooldown. A type-0x2F frame arriving just after a backfill ends (backfilling already flipped
     /// false) is a TRAILING historical frame, not the live R22 stream; it must not be miscounted as a
@@ -607,6 +619,7 @@ public final class BLEManager: NSObject, ObservableObject {
     private var strapNewestTs: Int?
     /// Fires if the strap goes silent mid-offload; re-armed on every frame during backfill.
     private var backfillTimeout: DispatchWorkItem?
+    private var backfillTimeoutGeneration: UInt64 = 0
     /// Periodic opportunistic upload while connected. Without it, upload only fires at connect +
     /// backfill-exit, so during a long live session decoded rows pile up locally and the server
     /// (dashboard) lags. Started on bond, cancelled on disconnect.
@@ -890,6 +903,17 @@ public final class BLEManager: NSObject, ObservableObject {
     /// re-subscribe so delivery — and the settle/alarm-re-arm chain — is re-established. Cleared the moment
     /// `connectSettled` bumps, and on disconnect.
     private var restoreNeedsResubscribe = false
+    private var restoredNotifications = NotificationRestoreTracker<CBUUID>()
+    private var deferredRestoreSync: BackfillTrigger?
+    private var deferredRealtimeCommands = RealtimeCommandDeferral()
+    #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+    private var lastOvernightSnapshotAt: TimeInterval = 0
+    private var overnightLastHRAt: TimeInterval = 0
+    #endif
+    private var restoredHistoryNotificationsPending: Bool {
+        restoredNotifications.hasPending(in: [cmdNotifyCharacteristic, eventNotifyCharacteristic,
+                                              dataNotifyCharacteristic].compactMap { $0?.uuid })
+    }
     /// Re-entrancy guard for captureRawAccel: true while a bounded on-demand window is running.
     /// A second tap is a no-op until the active capture's asyncAfter block fires and clears this.
     private var rawCaptureInFlight = false
@@ -1040,7 +1064,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// can re-subscribe them AFTER bonding — the strap refuses them ("Authentication is insufficient")
     /// until the link is encrypted (issue #17).
     private var whoop5NotifyCharacteristics: [CBCharacteristic] = []
-    private var reassembler = Reassembler()
+    private var reassembler = ChannelReassembler<CBUUID>()
     private var seq: UInt8 = 0
     private var didBond = false
     /// #1635: one explicit Connect grants one fresh CLIENT_HELLO even when the suppression latch is set.
@@ -1321,6 +1345,10 @@ public final class BLEManager: NSObject, ObservableObject {
         // before any BLE data arrives.
         self.collector = nil
         super.init()
+        #if NOOP_TEST_HOST
+        // Unit tests exercise state/persistence only. Never create a radio or request Bluetooth access.
+        return
+        #endif
         // Deliberately NOT seeded from the global key here. It belongs to whichever strap synced last,
         // which on a two-strap install is not the one the screens are scoped to — the misattribution this
         // whole change removes. `seedLastSyncFromActiveStrap` fills it from the ACTIVE strap once the
@@ -1523,6 +1551,10 @@ public final class BLEManager: NSObject, ObservableObject {
         self.router = FrameRouter(state: state)
         self.collector = collector
         super.init()
+        #if NOOP_TEST_HOST
+        // Unit tests exercise state/persistence only. Never create a radio or request Bluetooth access.
+        return
+        #endif
         // Deliberately NOT seeded from the global key here. It belongs to whichever strap synced last,
         // which on a two-strap install is not the one the screens are scoped to — the misattribution this
         // whole change removes. `seedLastSyncFromActiveStrap` fills it from the ACTIVE strap once the
@@ -1609,7 +1641,7 @@ public final class BLEManager: NSObject, ObservableObject {
             ? BatteryEstimator.ratedLifeHoursWhoop5 : BatteryEstimator.ratedLifeHoursWhoop4
         // Frame the inbound stream for the chosen family (WHOOP 4.0 CRC8 vs WHOOP 5.0 CRC16/puffin)
         // and tell the router which decoder to use. Fresh per connection so no stale bytes carry over.
-        reassembler = Reassembler(family: model.deviceFamily)
+        reassembler = ChannelReassembler<CBUUID>(family: model.deviceFamily)
         router.family = model.deviceFamily
         router.deviceId = deviceId   // #1706: attribute this connection's alarm readback
         // Live 5/MG persistence: point the Collector's decode at the selected family and install the
@@ -2217,6 +2249,16 @@ public final class BLEManager: NSObject, ObservableObject {
             log("send(\(command.label)) ignored — \(reason)")
             return
         }
+        #if os(iOS)
+        // Starting/stopping Live during history can switch the WHOOP 4 transport out of offload.
+        // Keep receiving HR, but apply only the final requested stream modes after the transfer.
+        if selectedModel.deviceFamily == .whoop4, backfilling, payload.count == 1,
+           payload[0] <= 1, command == .toggleRealtimeHR || command == .sendR10R11Realtime {
+            deferredRealtimeCommands.remember(command == .toggleRealtimeHR ? .heartRate : .raw,
+                                               enabled: payload[0] == 1)
+            return
+        }
+        #endif
         // The MG ECG family is 5/MG-only by construction, and the WHOOP 4.0 branch further down has no
         // allowlist of its own — so without this a caller bug could frame an ECG opcode for a 4.0, which
         // has neither the electrodes nor this command space. Dropping it HERE keeps the invariant inside
@@ -2442,6 +2484,10 @@ public final class BLEManager: NSObject, ObservableObject {
     /// flag, kick the strap with sendHistoricalData, and arm the idle timeout.
     @discardableResult
     private func beginBackfill() -> Bool {
+        // On iPhone, clock reads belong to connection setup. Issuing an unanswered GET_CLOCK
+        // immediately before SEND_HISTORICAL repeatedly stalled this strap's transfer; historical
+        // records already carry Unix time and use the existing identity fallback when no ref exists.
+        #if !os(iOS)
         // #1598: this whole block is WHOOP 4.0 ONLY. A 5/MG has no GET_CLOCK correlation to chase —
         // identity is its correct decode — and deriving one from the Data Range would misdate its
         // history. See BackfillContinuation.derivesClockCorrelation for why.
@@ -2468,6 +2514,7 @@ public final class BLEManager: NSObject, ObservableObject {
                 log("Clock: GET_CLOCK unresponsive — derived rough correlation from Data Range (device=\(newest) wall=\(wall), offset \(wall - newest)s)")
             }
         }
+        #endif
         // Never offload before the connect handshake has run: a racing foreground/restore trigger
         // firing SEND_HISTORICAL ahead of hello/SET_CLOCK was part of the storm that stopped serving.
         guard connectHandshakeDone else {
@@ -2491,7 +2538,27 @@ public final class BLEManager: NSObject, ObservableObject {
         // #42/#364: consecutiveAutoContinues > 0 means this offload is re-kicked after an EARLIER session in
         // the same burst banked rows — tell the backfiller so its no-cursor END reads as "caught up", not
         // "no banked history / charge to 100%". A fresh offload (count 0) keeps the honest guidance.
+        #if os(iOS)
+        if selectedModel.deviceFamily == .whoop4 {
+            // Suspend the bandwidth-heavy raw feed, preserving the caller's latest intent.
+            // Standard HR remains subscribed and FrameRouter continues updating the live reading.
+            send(.sendR10R11Realtime, payload: [0x00], writeType: .withResponse)
+            if (screenWantsRealtime || continuousCaptureWantsNow()) && !standardHRFallback {
+                deferredRealtimeCommands.remember(.raw, enabled: true)
+            }
+        }
+        #endif
         backfiller.begin(family: selectedModel.deviceFamily, continuedAfterRows: consecutiveAutoContinues > 0)
+        #if NOOP_SYNC_DIAGNOSTICS
+        syncDiagnosticStarted = DispatchTime.now().uptimeNanoseconds
+        syncDiagnosticFrames.removeAll(keepingCapacity: true)
+        syncDiagnosticRejected = 0
+        syncDiagnosticNotifications.removeAll(keepingCapacity: true)
+        syncDiagnosticBytes.removeAll(keepingCapacity: true)
+        let subscriptions = [cmdNotifyCharacteristic, eventNotifyCharacteristic, dataNotifyCharacteristic]
+            .compactMap { $0 }.map { "\($0.uuid):\($0.isNotifying)" }.joined(separator: ",")
+        log("Sync diagnostic: subscriptions=[\(subscriptions)]")
+        #endif
         backfilling = true
         state.backfilling = true
         state.syncChunksThisSession = 0
@@ -2509,6 +2576,9 @@ public final class BLEManager: NSObject, ObservableObject {
         send(.sendHistoricalData, payload: [0x00], writeType: .withResponse)
         armBackfillTimeout()
         log("Backfill: session started — historical offload requested")
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        recordOvernightStatus(reason: "sync-started")
+        #endif
         return true
     }
 
@@ -2568,8 +2638,9 @@ public final class BLEManager: NSObject, ObservableObject {
         }
     }
 
-    /// Re-arm the idle watchdog. Called on every offload frame during backfill so the timer resets
-    /// as long as the strap keeps sending HISTORY; if the strap goes silent the timer fires and we
+    /// Re-arm the idle watchdog on intact historical data, metadata or banked console frames.
+    /// EVENT frames may be live battery/wrist notifications and cannot extend this deadline.
+    /// If eligible offload traffic stops, the timer fires and we
     /// exit the session (the durable strap_trim cursor means the next session resumes where we left
     /// off). Timeout is generous (60 s, not 20 s): the unstoppable ~2/s type-43 raw flood eats BLE
     /// airtime, so genuine offload frames can arrive in bursts with multi-second lulls between chunks
@@ -2577,8 +2648,19 @@ public final class BLEManager: NSObject, ObservableObject {
     static let backfillIdleTimeoutSeconds = 60
     private func armBackfillTimeout() {
         backfillTimeout?.cancel()
+        backfillTimeoutGeneration &+= 1
+        let generation = backfillTimeoutGeneration
         let item = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+            guard let self, self.backfilling,
+                  self.backfillTimeoutGeneration == generation else { return }
+            #if os(iOS)
+            // Stop the strap-side transfer before clearing the local state. Otherwise a later
+            // retry can compete with the abandoned session. This does not ACK or trim any data.
+            if self.state.connected {
+                self.send(.abortHistoricalTransmits, payload: [0x00], writeType: .withResponse)
+                self.log("Backfill: idle timeout; requested transfer stop before local teardown")
+            }
+            #endif
             self.backfiller?.timeoutFired()
             self.exitBackfilling(reason: "timeout")
         }
@@ -2614,6 +2696,13 @@ public final class BLEManager: NSObject, ObservableObject {
             log("Abort sync ignored — no offload in flight")
             return
         }
+        #if os(iOS)
+        // Persist before teardown: queued strap events and restored connections must respect the tap.
+        // Scope to the active registry identity so pausing one strap never pauses a different strap.
+        UserDefaults.standard.set(Date().timeIntervalSince1970 + BackfillPolicy.userPauseSeconds,
+                                  forKey: BackfillPolicy.userPauseKey(deviceId: deviceId))
+        log("Automatic sync paused for \(BackfillPolicy.userPauseMinutes) minutes; Sync now resumes immediately.")
+        #endif
         // Send before tearing down: the 5/MG allowlist admits opcode 20 only while `backfilling` is
         // still true, so ordering here is load-bearing, not stylistic.
         if state.connected {
@@ -2635,6 +2724,20 @@ public final class BLEManager: NSObject, ObservableObject {
 
     private func exitBackfilling(reason: String) {
         guard backfilling else { return }
+        #if os(iOS)
+        defer {
+            #if NOOP_SYNC_DIAGNOSTICS
+            recordOvernightStatus(reason: "sync-ended-" + reason)
+            #endif
+            let commands = deferredRealtimeCommands.takeCommands()
+            if state.connected {
+                for command in commands {
+                    send(command.stream == .heartRate ? .toggleRealtimeHR : .sendR10R11Realtime,
+                         payload: [command.enabled ? 0x01 : 0x00])
+                }
+            }
+        }
+        #endif
         backfilling = false
         state.backfilling = false
         // #174: a backfill just ended. Start (or extend) the deep-packet cooldown from this instant so
@@ -2643,8 +2746,23 @@ public final class BLEManager: NSObject, ObservableObject {
         lastOffloadFrameAt = Date()
         backfillTimeout?.cancel()
         backfillTimeout = nil
+        backfillTimeoutGeneration &+= 1
         backfillFrameQueue.removeAll()
         log("Backfill: session ended — reason=\(reason)")
+
+        #if NOOP_SYNC_DIAGNOSTICS
+        if let started = syncDiagnosticStarted {
+            let elapsedMs = (DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+            let counts = syncDiagnosticFrames.sorted { $0.key < $1.key }
+                .map { "\($0.key):\($0.value)" }.joined(separator: ",")
+            log("Backfill diagnostic: elapsed=\(elapsedMs)ms validOffloadTypes=[\(counts)] rejected=\(syncDiagnosticRejected)")
+            let inbound = syncDiagnosticNotifications.sorted { $0.key.uuidString < $1.key.uuidString }
+                .map { "\($0.key):\($0.value) packets/\(syncDiagnosticBytes[$0.key, default: 0]) bytes" }
+                .joined(separator: ",")
+            log("Sync diagnostic: inbound=[\(inbound)]")
+            syncDiagnosticStarted = nil
+        }
+        #endif
         // Inactivity reminder (#419): read-only hook on the natural offload completion (no cadence
         // change). Only on a true HISTORY_COMPLETE — a timeout/disconnect didn't bring a fresh window.
         if reason == "HISTORY_COMPLETE" { maybeBuzzInactivity() }
@@ -2736,6 +2854,16 @@ public final class BLEManager: NSObject, ObservableObject {
         // never a fresh `backfiller.sessionRowsPersisted` re-read that a re-kicked session / trailing frames
         // could have mutated across the offload boundary.
         let persistedSensorRows = (backfiller?.sessionRowsPersisted ?? 0) > 0
+        #if os(iOS)
+        // A timeout with no saved data is a failed attempt, not a reason to start again on resume.
+        if reason == "timeout" && !persistedSensorRows {
+            UserDefaults.standard.set(Date().timeIntervalSince1970 + BackfillPolicy.stalledRetrySeconds,
+                                      forKey: BackfillPolicy.retryKey(deviceId: deviceId))
+            log("Backfill: no rows saved; automatic retries paused for 3 minutes.")
+        } else if reason == "HISTORY_COMPLETE" || persistedSensorRows {
+            UserDefaults.standard.removeObject(forKey: BackfillPolicy.retryKey(deviceId: deviceId))
+        }
+        #endif
         if persistedSensorRows { consecutiveEmptyOffloads = 0 }
         else if consecutiveAutoContinues == 0 { consecutiveEmptyOffloads += 1 }
         if reason == "HISTORY_COMPLETE" {
@@ -2930,7 +3058,9 @@ public final class BLEManager: NSObject, ObservableObject {
             // Snapshotting `> 0` = the auto-continue can't disagree with the empty verdict, and a dup-only
             // re-offload (0 new rows) stops instead of spinning on already-synced data.
             maybeAutoContinueBackfill(trimAdvanced: trimAdvanced,
-                                      persistedSensorRows: persistedSensorRows)
+                                      persistedSensorRows: persistedSensorRows,
+                                      completed: reason == "HISTORY_COMPLETE",
+                                      historicalFrontier: backfiller?.sessionHistoricalHRFrontier)
         }
     }
 
@@ -2945,7 +3075,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// `trimAdvanced` is the spin-detector signal computed in exitBackfilling (did this session move the
     /// trim cursor vs the previous one) — passed in because exitBackfilling has already advanced
     /// `lastSessionEndTrim` past the comparison point by the time this Task runs.
-    private func maybeAutoContinueBackfill(trimAdvanced: Bool, persistedSensorRows: Bool) {
+    private func maybeAutoContinueBackfill(trimAdvanced: Bool, persistedSensorRows: Bool, completed: Bool, historicalFrontier: Int?) {
         // Cheap pre-checks first (no Task if we already know we won't continue): still connected, under
         // the cap, and the trim moved. The frontier read only happens when those already hold.
         guard state.connected, state.bonded else { return }
@@ -2986,6 +3116,15 @@ public final class BLEManager: NSObject, ObservableObject {
                 }
                 state.historyPendingSync = pending
             }
+            #if os(iOS)
+            guard BackfillPolicy.phoneAllowsContinuation(completed: completed, now: wallNow,
+                                                          frontier: historicalFrontier) else {
+                consecutiveAutoContinues = 0
+                state.historyPendingSync = false
+                log("Backfill: caught up to the current five-minute window; no immediate repeat")
+                return
+            }
+            #endif
             let stillConnected = state.connected && state.bonded
             guard BackfillContinuation.shouldAutoContinue(
                 stillConnected: stillConnected,
@@ -3157,6 +3296,16 @@ public final class BLEManager: NSObject, ObservableObject {
     /// offload while connected+bonded and not already backfilling — the primary metric sync.
     // MARK: - Keep-alive (always-ping + liveness watchdog)
 
+    #if NOOP_SYNC_DIAGNOSTICS
+    /// Controlled comparison with the pre-fix clock-query sequence, for local development only.
+    func debugSyncWithClockQueries() {
+        guard state.connected, state.bonded, !backfilling else { return }
+        send(.getClock, payload: [])
+        send(.getClock, payload: [0x00])
+        requestSync(.manual)
+    }
+    #endif
+
     /// Enable live HR and remember we want it re-armed by keep-alive.
     /// Some WHOOP firmware acknowledges TOGGLE_REALTIME_HR but only emits usable live samples once
     /// the R10/R11 realtime stream is also on. Keep that stream scoped to the Live tab and stop it
@@ -3172,8 +3321,14 @@ public final class BLEManager: NSObject, ObservableObject {
         standardHRFallback = false
         state.standardHRMode = nil
         enableLiveNotifications(reason: "start realtime")
+        #if os(iOS)
+        RealtimeArmSequence.perform(enableHR: { reconcileRealtime() }, enableRaw: {
+            send(.sendR10R11Realtime, payload: [0x01])
+        })
+        #else
         send(.sendR10R11Realtime, payload: [0x01])   // the heavy burst rides alongside the toggle on Live
         reconcileRealtime()                          // arms TOGGLE_REALTIME_HR(1) on the off→on edge
+        #endif
         realtimeArmedAt = Date()       // start the arm→drop stopwatch for the marginal-radio detector
     }
     /// Stop the Live-tab realtime streams. The lightweight 0x2A37 HR keeps recording if firmware emits it.
@@ -3882,6 +4037,8 @@ public final class BLEManager: NSObject, ObservableObject {
     /// #592: format a GET_EXTENDED_BATTERY_INFO COMMAND_RESPONSE and publish it, diffing against the
     /// persisted previous payload. Called from the inbound frame handler for both families.
     private func handleExtendedBatteryProbeResponse(_ frame: [UInt8], isWhoop5: Bool) {
+        guard ExtendedBatteryProbe.acceptsResponse(frame, family: isWhoop5 ? .whoop5 : .whoop4,
+            waitingForReply: state.extendedBatteryProbe == BLEManager.extendedBatteryProbeWaiting) else { return }
         let prev = UserDefaults.standard.string(forKey: BLEManager.extendedBatteryPrevPayloadKey)
         let (text, payHex) = ExtendedBatteryProbe.format(
             frame: frame, cmdOff: isWhoop5 ? 10 : 6, isWhoop5: isWhoop5, prevPayloadHex: prev)
@@ -4538,6 +4695,12 @@ public final class BLEManager: NSObject, ObservableObject {
     }
 
     private func keepAliveFire() {
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        // Piggyback on the existing keep-alive; no diagnostic timer or wake-up is added.
+        if Date().timeIntervalSince1970 - lastOvernightSnapshotAt >= 300 {
+            recordOvernightStatus(reason: "existing-keepalive")
+        }
+        #endif
         // #1635: a SUPPRESSED 5/MG never bonds, so a bare `didBond` gate switches this whole timer off for
         // exactly the link that now stays up for hours - taking the liveness watchdog below with it and
         // leaving a stalled stream with nothing to bounce it. That would quietly break the "stable live HR"
@@ -4612,8 +4775,16 @@ public final class BLEManager: NSObject, ObservableObject {
         // would just re-trigger the drop the keep-alive is meant to prevent. 0x2A37 keeps the HR flowing.
         if wantsRealtime && !standardHRFallback {
             realtimeArmed = true   // keep reconcileRealtime()'s edge tracking in sync with the re-arm
+            #if os(iOS)
+            RealtimeArmSequence.perform(enableHR: {
+                send(.toggleRealtimeHR, payload: [0x01])
+            }, enableRaw: {
+                send(.sendR10R11Realtime, payload: [0x01])
+            })
+            #else
             send(.sendR10R11Realtime, payload: [0x01])
             send(.toggleRealtimeHR, payload: [0x01])
+            #endif
         }   // re-arm so it can't lapse
         keepAliveTick += 1
         // #battery: ~60 s normally, ~30 s while charging (see `batteryPollDue`).
@@ -4644,7 +4815,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // 151 at all is an Android-side question today.
         if selectedModel.deviceFamily != .whoop5,
            BLEManager.batteryPollDue(tick: keepAliveTick, charging: state.charging == true) {
-            send(.getBatteryLevel, payload: [])
+            // Match the already-working bond/manual read: a four-byte command body.
+            send(.getBatteryLevel, payload: [0x00])
         }
     }
 
@@ -4667,8 +4839,36 @@ public final class BLEManager: NSObject, ObservableObject {
     func requestSync(_ trigger: BackfillTrigger) {
         guard BLEManager.shouldRunPeriodicBackfill(
             connected: state.connected, bonded: state.bonded, backfilling: backfilling) else { return }
+        #if os(iOS)
+        if restoredHistoryNotificationsPending {
+            // Preserve a manual request across the subscription callbacks; coalesce all other triggers.
+            if trigger == .manual || deferredRestoreSync == nil { deferredRestoreSync = trigger }
+            log("Backfill: waiting for restored history notification channels to confirm")
+            return
+        }
+        #endif
         let now = Date().timeIntervalSince1970
         let last = UserDefaults.standard.object(forKey: BLEManager.backfillLastAtKey) as? Double
+        let userPausedUntil: TimeInterval?
+        #if os(iOS)
+        let pauseKey = BackfillPolicy.userPauseKey(deviceId: deviceId)
+        if case .manual = trigger { UserDefaults.standard.removeObject(forKey: pauseKey) }
+        userPausedUntil = UserDefaults.standard.object(forKey: pauseKey) as? Double
+        let retryKey = BackfillPolicy.retryKey(deviceId: deviceId)
+        if case .manual = trigger { UserDefaults.standard.removeObject(forKey: retryKey) }
+        guard BackfillPolicy.phoneAllows(trigger: trigger, now: now, lastAttempt: last,
+                                         lastCompleted: state.lastSyncedAt,
+                                         retryAfter: UserDefaults.standard.object(forKey: retryKey) as? Double) else {
+            log("Backfill: \(trigger) deferred — recent sync or stalled-transfer cooldown; Sync now is available.")
+            return
+        }
+        guard BackfillPolicy.userPauseAllows(trigger: trigger, now: now, pausedUntil: userPausedUntil) else {
+            log("Backfill: \(trigger) deferred — automatic sync is paused by the user.")
+            return
+        }
+        #else
+        userPausedUntil = nil
+        #endif
         // #160: a future-dated-clock strap's recurring automatic offloads (#928/#1012) are near-useless
         // AND each ~60s session blocks the WHOOP4 realtime-HR keep-alive re-arm (guard !backfilling), so
         // live HR lapses. Feed the already-tracked future-dated signal into BackfillPolicy, which SKIPS
@@ -4679,7 +4879,8 @@ public final class BLEManager: NSObject, ObservableObject {
                                        // plain empty-offload streak incl. idle-timeout stalls — the latter is
                                        // what stops the 15-min poll spinning on a caught-up strap.
                                        emptyStreak: max(emptySyncTracker.consecutiveEmptySyncs, consecutiveEmptyOffloads),
-                                       clockUntrusted: clockUntrusted) else {
+                                       clockUntrusted: clockUntrusted,
+                                       userPausedUntil: userPausedUntil) else {
             log("Backfill: \(trigger) skipped (rate-limited; last \(last.map { Int(now - $0) } ?? -1)s ago)")
             return
         }
@@ -4762,7 +4963,20 @@ public final class BLEManager: NSObject, ObservableObject {
 
     private func log(_ s: String) {
         state.append(log: "[\(timestamp())] \(s)")
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        if OvernightDiagnostics.shouldRecordBLE(s) { OvernightDiagnostics.record(s) }
+        #endif
     }
+
+    #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+    func recordOvernightStatus(reason: String) {
+        let now = Date().timeIntervalSince1970
+        let gap = lastOvernightSnapshotAt == 0 ? -1 : now - lastOvernightSnapshotAt
+        lastOvernightSnapshotAt = now
+        let hrAge = overnightLastHRAt == 0 ? -1 : now - overnightLastHRAt
+        OvernightDiagnostics.record("status reason=\(reason) app=\(UIApplication.shared.applicationState.rawValue) connected=\(state.connected) bonded=\(state.bonded) historyReady=\(state.historyReady) sync=\(backfilling) live=\(state.liveFeedActive) hr=\(state.heartRate ?? -1) hrAgeSeconds=\(Int(hrAge)) rrPackets=\(state.rrSeq) battery=\(state.batteryPct ?? -1) lastFrame=\(state.lastFrameAtUnix ?? 0) lastSync=\(state.lastSyncedAt ?? 0) snapshotGapSeconds=\(Int(gap))")
+    }
+    #endif
     private func timestamp() -> String {
         BLEManager.logTimeFormatter.string(from: Date())
     }
@@ -4820,7 +5034,7 @@ public final class BLEManager: NSObject, ObservableObject {
         advertisementLogged = false
         cancelScanFallback()
         selectedModel = model
-        reassembler = Reassembler(family: model.deviceFamily)
+        reassembler = ChannelReassembler<CBUUID>(family: model.deviceFamily)
         router.family = model.deviceFamily
         router.deviceId = deviceId   // #1706: attribute this connection's alarm readback
         configureCollectorFamily()
@@ -5139,6 +5353,9 @@ public final class BLEManager: NSObject, ObservableObject {
             log("Notify unavailable \(c.uuid) (\(reason))")
             return
         }
+        #if os(iOS)
+        if restoreNeedsResubscribe, !restoredNotifications.request(c.uuid) { return }
+        #endif
         if c.isNotifying {
             // #613: after CoreBluetooth state restoration the inherited subscription is reported active but
             // no longer delivers, and `setNotifyValue(true)` on an already-notifying char yields NO callback
@@ -5403,6 +5620,9 @@ public final class BLEManager: NSObject, ObservableObject {
             return
         }
         let now = Date()
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        if (30...220).contains(m.hr) { overnightLastHRAt = now.timeIntervalSince1970 }
+        #endif
         if lastStandardHRLogAt.map({ now.timeIntervalSince($0) >= 30 }) ?? true {
             lastStandardHRLogAt = now
             let plausibility = (30...220).contains(m.hr) ? "" : " ignored"
@@ -5998,6 +6218,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.historyReady = false
         cmdNotifyConfirmedActive = false   // #34: a fresh connection needs its own notify-confirm + settle
         connectSettledSignaled = false
+        restoredNotifications = NotificationRestoreTracker()
+        deferredRestoreSync = nil
+        deferredRealtimeCommands = RealtimeCommandDeferral()
         restoreNeedsResubscribe = false    // #613: a real reconnect isn't a restore — never force-toggle here
         realtimeArmedAt = nil   // cleared after the marginal-radio detector above read it (#80)
         // Reset backfill state so the next connect starts a fresh offload (incl. the syncing pill —
@@ -6035,6 +6258,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.sustainedEmptyOffload = false
         backfillTimeout?.cancel()
         backfillTimeout = nil
+        backfillTimeoutGeneration &+= 1
         backfillFrameQueue.removeAll()
         backfillDraining = false
         uploadTimer?.cancel()
@@ -6180,7 +6404,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // length offset + constant), producing corrupt/empty data for the whole unattended session until
         // the user manually taps connect.
         selectedModel = .persisted
-        reassembler = Reassembler(family: selectedModel.deviceFamily)
+        reassembler = ChannelReassembler<CBUUID>(family: selectedModel.deviceFamily)
         router.family = selectedModel.deviceFamily
         router.deviceId = deviceId   // #1706: attribute this connection's alarm readback
         configureCollectorFamily()
@@ -6215,6 +6439,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             // off→on re-subscribe this session (see `requestNotify`) so live HR/R-R resume AND
             // `didUpdateNotificationStateFor` fires → `cmdNotifyConfirmedActive` → `connectSettled` → the
             // alarm re-arm. Cleared when `connectSettled` bumps.
+            restoredNotifications = NotificationRestoreTracker()
+            deferredRestoreSync = nil
             restoreNeedsResubscribe = true
             log("Restored CONNECTED peripheral \(p.identifier) — re-discovering services")
             discoverPrimaryServices(on: p)
@@ -6700,8 +6926,16 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             } else {
                 log("Realtime HR: arming after bond")
                 realtimeArmed = true   // keep reconcileRealtime()'s edge tracking in sync with the arm
+                #if os(iOS)
+                RealtimeArmSequence.perform(enableHR: {
+                    send(.toggleRealtimeHR, payload: [0x01])
+                }, enableRaw: {
+                    send(.sendR10R11Realtime, payload: [0x01])
+                })
+                #else
                 send(.sendR10R11Realtime, payload: [0x01])
                 send(.toggleRealtimeHR, payload: [0x01])
+                #endif
                 realtimeArmedAt = Date()   // start the arm→drop stopwatch for the marginal-radio detector
             }
         }
@@ -6721,6 +6955,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
     /// SET_ALARM_TIME/GET_ALARM_TIME go out on a link whose reply channel is confirmed live (#34).
     private func maybeSignalConnectSettled() {
         guard connectHandshakeDone, cmdNotifyConfirmedActive, !connectSettledSignaled else { return }
+        #if os(iOS)
+        guard !restoredHistoryNotificationsPending else { return }
+        #endif
         connectSettledSignaled = true
         state.connectSettled &+= 1
         restoreNeedsResubscribe = false   // #613: forced re-subscribe pass is done — keep-alive resumes normal
@@ -6913,6 +7150,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         }
         guard let data = characteristic.value else { return }
         let bytes = [UInt8](data)
+        #if NOOP_SYNC_DIAGNOSTICS
+        if backfilling {
+            syncDiagnosticNotifications[characteristic.uuid, default: 0] += 1
+            syncDiagnosticBytes[characteristic.uuid, default: 0] += bytes.count
+            if syncDiagnosticNotifications[characteristic.uuid, default: 0] <= 2 {
+                log("Sync diagnostic RX \(characteristic.uuid) bytes=\(bytes.count) prefix=\(hex(Array(bytes.prefix(8))))")
+            }
+        }
+        #endif
         lastDataAt = Date()   // feed the liveness watchdog on every notification
         // #1809: count BEFORE the per-characteristic switch below, so the tally covers every inbound
         // frame including ones no branch consumes - the epitaph must answer "did anything arrive at all".
@@ -6990,7 +7236,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             // reassembler and reaches no parser and no archive, so its monotonic drop count is folded
             // into the connection's reject tally right after the feed that may have grown it —
             // otherwise it would disappear without trace.
-            let completedFrames = reassembler.feed(bytes)
+            let completedFrames = reassembler.feed(bytes, channel: characteristic.uuid)
             router.noteReassemblerDrops(reassembler.belowMinimumLengthDrops)
             for frame in completedFrames {
                 if backfilling, BLEManager.isOffloadFrame(frame, family: .whoop4) {
@@ -7002,8 +7248,14 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     // criterion reads blind in exactly the traffic where an emptied-then-acked section
                     // is a permanent loss. The verdict is formed once here, from the verifier, and
                     // handed to the counter — no parse on this path, which is why it was skipped.
-                    router.noteOffloadFrameVerdict(verifyFrame(frame, family: .whoop4))
-                    armBackfillTimeout()
+                    let verdict = verifyFrame(frame, family: .whoop4)
+                    router.noteOffloadFrameVerdict(verdict)
+                    #if NOOP_SYNC_DIAGNOSTICS
+                    recordSyncDiagnostic(type: frame[4], valid: verdict.ok)
+                    #endif
+                    if BackfillPolicy.extendsIdleTimeout(packetType: frame[4], frameIsValid: verdict.ok) {
+                        armBackfillTimeout()
+                    }
                     routeBackfillFrame(frame)
                     // …but a REAL-TIME physical gesture (double-tap / wrist) must still fire even mid-
                     // offload (#69). Gated on ts≈now so replayed historical EVENTs (old ts) are ignored.
@@ -7021,6 +7273,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // the router + collector re-checks the invariant).
                 let parsed = parseFrame(frame, family: .whoop4)
                 router.handle(parsed: parsed, frame: frame)       // live/UI path
+                #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+                if parsed.ok, let hr = parsed.parsed["heart_rate"]?.intValue, (30...220).contains(hr) {
+                    overnightLastHRAt = Date().timeIntervalSince1970
+                }
+                #endif
                 //
                 // WHAT IS AND IS NOT GATED BELOW (standing risk, recorded rather than fixed here).
                 //
@@ -7035,8 +7292,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // through `verifyFrame` in WhoopProtocol), the R22 read-back and the ECG/Broadcast-HR
                 // gate READ-BACKS (through the same probe parser), and the 5/MG ECG probe.
                 //
-                // These do NOT, and stay that way for now — none drives live state or the offload:
-                //   • the extended-battery probe (#592) and the body-location probe (#690): each reads
+                // The extended-battery probe validates type, integrity and an outstanding user request.
+                // These remaining consumers do NOT yet verify inside their own decoder:
+                //   • the body-location probe (#690), which reads
                 //     the reply's bytes, states a finding about the strap in the Devices dialog, and
                 //     persists its payload hex to UserDefaults for the next capture diff;
                 //   • the WRITE-ACK branches (R22 disable, ECG gate, Broadcast-HR gate), which read a
@@ -7118,7 +7376,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             // standard 0x2A37 / 0x2A19 profiles handled above.
             if BLEManager.whoop5NotifyChars.contains(characteristic.uuid) {
                 // Same fold as the WHOOP 4.0 path above: byte runs dropped below the family minimum.
-                let completedFrames = reassembler.feed(bytes)
+                let completedFrames = reassembler.feed(bytes, channel: characteristic.uuid)
                 router.noteReassemblerDrops(reassembler.belowMinimumLengthDrops)
                 for frame in completedFrames {
                     let isOffload = backfilling && BLEManager.isOffloadFrame(frame, family: .whoop5)
@@ -7141,8 +7399,14 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                         // Same tally hand-off as the WHOOP 4.0 loop, and for the same reason (D3):
                         // the router counts rejections, so a frame that skips it would be invisible
                         // to the counter the hardware run is judged on. One verdict, no parse.
-                        router.noteOffloadFrameVerdict(verifyFrame(frame, family: .whoop5))
-                        armBackfillTimeout()
+                        let verdict = verifyFrame(frame, family: .whoop5)
+                        router.noteOffloadFrameVerdict(verdict)
+                        #if NOOP_SYNC_DIAGNOSTICS
+                        recordSyncDiagnostic(type: frame[8], valid: verdict.ok)
+                        #endif
+                        if BackfillPolicy.extendsIdleTimeout(packetType: frame[8], frameIsValid: verdict.ok) {
+                            armBackfillTimeout()
+                        }
                         routeBackfillFrame(frame)
                         // A real-time double-tap / wrist gesture still fires during a 5/MG offload (which
                         // runs for minutes, #69); the ts≈now gate rejects replayed historical EVENTs.
@@ -7154,7 +7418,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                     router.handle(frame: frame)
                     // The same split as the WHOOP 4.0 loop above, and for the same reasons: the probe
                     // dispatches below branch on a raw opcode compare; the ones that verify do it inside
-                    // their own decoder, the extended-battery / body-location probes and the write-ack
+                    // their own decoder, the body-location probe and the write-ack
                     // branches do not, and are recorded there as a standing risk rather than hardened.
                     // #592: a 5/MG extended-battery probe COMMAND_RESPONSE (puffin envelope: type @8, cmd
                     // @10). Format + publish it for the Devices dialog, exactly like the 4.0 path above.
@@ -7240,6 +7504,9 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                            error: Error?) {
         if let error = error {
             log("Notify enable failed for \(characteristic.uuid): \(error.localizedDescription)")
+            #if os(iOS)
+            restoredNotifications.failed(characteristic.uuid)
+            #endif
         } else {
             log("Notify \(characteristic.isNotifying ? "active" : "off") \(characteristic.uuid)")
             // #34: the cmd-notify channel carries GET_ALARM_TIME's (and every other COMMAND_RESPONSE's)
@@ -7248,8 +7515,21 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             // ordering a v8.6.2 strap log showed actually happens.
             if characteristic === cmdNotifyCharacteristic, characteristic.isNotifying {
                 cmdNotifyConfirmedActive = true
+            }
+            #if os(iOS)
+            if characteristic.isNotifying {
+                restoredNotifications.confirmed(characteristic.uuid)
+                maybeSignalConnectSettled()
+                if !restoredHistoryNotificationsPending, let trigger = deferredRestoreSync {
+                    deferredRestoreSync = nil
+                    requestSync(trigger)
+                }
+            }
+            #else
+            if characteristic === cmdNotifyCharacteristic, characteristic.isNotifying {
                 maybeSignalConnectSettled()
             }
+            #endif
         }
     }
 }

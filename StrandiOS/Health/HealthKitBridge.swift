@@ -1035,6 +1035,56 @@ final class HealthKitBridge: ObservableObject {
         try await store.save(samples)
     }
 
+    /// Compare with HealthKit itself, so retries, external deletions, and process restarts cannot
+    /// leave a successful local fingerprint hiding a missing destination record.
+    private func exportSamples(type: HKSampleType, predicate: NSPredicate) async throws -> [HKSample] {
+        try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: type, predicate: predicate,
+                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+                if let error { continuation.resume(throwing: error) }
+                else { continuation.resume(returning: samples ?? []) }
+            }
+            store.execute(query)
+        }
+    }
+
+    private func exportSignature(_ sample: HKSample) -> String {
+        let external = sample.metadata?[HKMetadataKeyExternalUUID] as? String ?? ""
+        var parts = [sample.sampleType.identifier, external,
+                     String(sample.startDate.timeIntervalSince1970.bitPattern),
+                     String(sample.endDate.timeIntervalSince1970.bitPattern)]
+        if let sample = sample as? HKQuantitySample {
+            let unit: HKUnit
+            switch sample.quantityType.identifier {
+            case HKQuantityTypeIdentifier.heartRate.rawValue,
+                 HKQuantityTypeIdentifier.restingHeartRate.rawValue,
+                 HKQuantityTypeIdentifier.respiratoryRate.rawValue:
+                unit = .count().unitDivided(by: .minute())
+            case HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue: unit = .secondUnit(with: .milli)
+            case HKQuantityTypeIdentifier.oxygenSaturation.rawValue: unit = .percent()
+            default: unit = .degreeCelsius()
+            }
+            parts.append(String(format: "%.9f", locale: Locale(identifier: "en_US_POSIX"), sample.quantity.doubleValue(for: unit)))
+        } else if let sample = sample as? HKCategorySample { parts.append(String(sample.value)) }
+        return parts.map { "\($0.utf8.count):\($0)" }.joined()
+    }
+
+    private func reconcileExportSamples(type: HKSampleType, desired: [HKSample], predicate: NSPredicate) async throws {
+        try Task.checkCancellation()
+        let existing = try await exportSamples(type: type, predicate: predicate)
+        let plan = ExportSampleDiff.plan(existing: existing.map(exportSignature), desired: desired.map(exportSignature))
+        // Delete only observed, source-scoped records. No range deletion after a failed source read.
+        if !plan.remove.isEmpty {
+            try Task.checkCancellation()
+            try await store.delete(plan.remove.map { existing[$0] })
+        }
+        for start in stride(from: 0, to: plan.insert.count, by: 1000) {
+            try Task.checkCancellation()
+            let indices = plan.insert[start..<min(start + 1000, plan.insert.count)]
+            try await store.save(indices.map { desired[$0] })
+        }
+    }
+
     /// UserDefaults key for the HR write cursor (the newest bucket ts we've written). Per-strap so a
     /// device switch restarts the backfill for the new strap instead of resuming mid-stream.
     private var hrWriteCursorKey: String { "hkHRWriteCursor.v1.\(noopDeviceId)" }
@@ -1044,54 +1094,38 @@ final class HealthKitBridge: ObservableObject {
     /// ~1 Hz is deliberately downsampled: a fully-worn day is ~86k samples, which bloats the Health
     /// store; 1/min matches Apple Watch's background cadence.
     ///
-    /// Dedup: forward-only cursor plus a 48 h rewrite window. Each run deletes OUR OWN prior HR
-    /// samples in `[windowStart, now]` (source-scoped, date-range predicate — far cheaper than per-
-    /// sample external-UUID keys at this volume) and rewrites the window, so a strap offload that
+    /// Dedup: forward-only cursor plus a 48 h rewrite window. Each run compares OUR OWN prior HR
+    /// samples in `[windowStart, now]` and changes only differing samples, so a strap offload that
     /// backfills a recent night reconciles. Offloads older than 48 h behind the cursor are missed
     /// until the cursor is cleared — accepted trade-off for not re-walking 14 days every sync.
     private func writeHeartRate(whoopStore: WhoopStore, fromTs: Int, nowTs: Int) async throws {
         guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate),
               store.authorizationStatus(for: type) == .sharingAuthorized else { return }
         let cursor = UserDefaults.standard.integer(forKey: hrWriteCursorKey)
-        let windowStart = cursor > 0 ? max(fromTs, cursor - 48 * 3600) : fromTs
-        let buckets = (try? await whoopStore.hrBuckets(deviceId: noopDeviceId, from: windowStart,
-                                                       to: nowTs, bucketSeconds: 60)) ?? []
+        // Preserve the stock 48-hour overlap and first-run 14-day window. Compare only complete
+        // minute buckets, so a partially overlapping boundary sample is never deleted by accident.
+        let rawStart = cursor > 0 ? max(fromTs, cursor - 48 * 3600) : fromTs
+        let windowStart = ((rawStart + 59) / 60) * 60
+        let buckets = try await whoopStore.hrBuckets(deviceId: noopDeviceId, from: windowStart,
+                                                     to: nowTs, bucketSeconds: 60)
         guard !buckets.isEmpty else { return }
-
         let pred = NSCompoundPredicate(andPredicateWithSubpredicates: [
             HKQuery.predicateForObjects(from: HKSource.default()),
             HKQuery.predicateForSamples(withStart: Date(timeIntervalSince1970: TimeInterval(windowStart)),
                                         end: Date(timeIntervalSince1970: TimeInterval(nowTs) + 60),
-                                        options: []),
+                                        options: .strictStartDate),
         ])
-        _ = try? await store.deleteObjects(of: type, predicate: pred)
-
         let unit = HKUnit.count().unitDivided(by: .minute())
-        var samples: [HKQuantitySample] = []
-        samples.reserveCapacity(buckets.count)
-        for b in buckets {
+        let samples = buckets.map { b in
             let start = Date(timeIntervalSince1970: TimeInterval(b.ts))
-            // Span the bucket, clamped so a bucket at the window edge can't end in the future
-            // (HealthKit rejects future-dated samples).
             let end = Date(timeIntervalSince1970: TimeInterval(min(b.ts + 60, nowTs)))
-            samples.append(HKQuantitySample(type: type,
-                                            quantity: .init(unit: unit, doubleValue: b.bpm),
-                                            start: start, end: max(start, end)))
+            return HKQuantitySample(type: type, quantity: .init(unit: unit, doubleValue: b.bpm),
+                                    start: start, end: max(start, end))
         }
-        // First run backfills ~20k samples (14 d × 1440/day); chunk the saves so no single HealthKit
-        // transaction is oversized. Cursor only advances past what actually saved.
-        var lastSaved = cursor
-        var pending = samples[...]
-        var pendingTs = buckets.map(\.ts)[...]
-        while !pending.isEmpty {
-            let chunk = Array(pending.prefix(5000))
-            let chunkTs = Array(pendingTs.prefix(5000))
-            pending = pending.dropFirst(chunk.count)
-            pendingTs = pendingTs.dropFirst(chunk.count)
-            try await store.save(chunk)
-            lastSaved = max(lastSaved, chunkTs.last ?? lastSaved)
-            UserDefaults.standard.set(lastSaved, forKey: hrWriteCursorKey)
-        }
+        try await reconcileExportSamples(type: type, desired: samples, predicate: pred)
+        // Advance only after a complete reconciliation. A partial save is discovered and repaired
+        // from HealthKit's actual contents on the next stock retry, without rewriting its successes.
+        UserDefaults.standard.set(max(cursor, buckets.map(\.ts).max() ?? cursor), forKey: hrWriteCursorKey)
     }
 
     /// Write strap-detected and manual workouts into Health via `HKWorkoutBuilder`, with an

@@ -114,6 +114,10 @@ final class Backfiller {
     private(set) var sessionRrGapHist = [0, 0, 0, 0, 0, 0, 0, 0]
     private(set) var sessionRrFill = [0, 0, 0, 0]
 
+    /// Newest HR timestamp from successfully stored chunks in THIS historical offload.
+    /// Live HR must never make an old history backlog appear caught up.
+    private(set) var sessionHistoricalHRFrontier: Int?
+
     /// "persisted N rows (M with motion) across K night(s)". Nights are day-keys (ts / 86400).
     private(set) var sessionRowsPersisted = 0
     /// #42: set by `begin` when this session continues an auto-continue burst (#364) that already banked
@@ -325,6 +329,7 @@ final class Backfiller {
         chunk.removeAll(keepingCapacity: true)
         chunkOpen = true
         sessionRowsPersisted = 0
+        sessionHistoricalHRFrontier = nil
         sessionRrOffered = 0
         sessionRrInserted = 0
         sessionRrSumMs = 0
@@ -582,6 +587,9 @@ final class Backfiller {
 
     private func finishChunk(unix: UInt32, trim: UInt32, endFrame: [UInt8]) async {
         guard let endData = Backfiller.endData(from: endFrame, family: family) else { return }
+        #if NOOP_SYNC_DIAGNOSTICS
+        let preparationStarted = DispatchTime.now().uptimeNanoseconds
+        #endif
 
         // #773: corrupt future-RTC detection. A HISTORY_END carries the strap's own clock; a genuine offload
         // is always PAST-dated (it's banked history), so an end dated days into the future can only be a
@@ -868,6 +876,9 @@ final class Backfiller {
             // "persisted N rows (M with motion) across K night(s)" — the win-rate signal a log never had.
             let tally = Backfiller.chunkTally(counts: counts, timestamps: decoded.gravity.map(\.ts) + decoded.hr.map(\.ts))
             sessionRowsPersisted += tally.rows
+            if let newest = decoded.hr.map(\.ts).max() {
+                sessionHistoricalHRFrontier = max(sessionHistoricalHRFrontier ?? newest, newest)
+            }
             // #1008/#1118 census accumulation (pre-storage `offered` vs post-key `inserted`).
             sessionRrOffered += rrCensus.intervals
             sessionRrInserted += counts.rr
@@ -966,6 +977,12 @@ final class Backfiller {
             return
         }
 
+        #if NOOP_SYNC_DIAGNOSTICS
+        // Measure only local END-to-ACK preparation. This excludes radio transfer and
+        // confirmation of the write, so it cannot be mistaken for end-to-end throughput.
+        let preparationMs = (DispatchTime.now().uptimeNanoseconds - preparationStarted) / 1_000_000
+        log?("Backfill: ACK prepared for \(frames.count) frames in \(preparationMs)ms locally")
+        #endif
         ackTrim(trim, endData)
         lastAckedTrim = trim   // #364: record the advanced cursor for the auto-continue spin-detector
     }

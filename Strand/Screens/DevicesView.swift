@@ -1033,7 +1033,13 @@ private struct DeviceCard: View {
                 // Stop a sync that is part-way through. Present only while this strap is actually
                 // offloading; the parent owns that condition.
                 if let onAbortSync {
+                    #if os(iOS)
+                    Button { onAbortSync() } label: {
+                        Label("Pause sync for \(BackfillPolicy.userPauseMinutes) minutes", systemImage: "pause.circle")
+                    }
+                    #else
                     Button { onAbortSync() } label: { Label("Stop sync", systemImage: "stop.circle") }
+                    #endif
                 }
                 // 4.0 reboot probe (RE): only present when the parent passed a closure (Test Centre →
                 // Connection on + a live WHOOP 4.0). Finds the real reboot frame the 4.0 accepts (#235).

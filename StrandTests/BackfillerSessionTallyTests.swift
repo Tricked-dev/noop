@@ -286,6 +286,27 @@ final class BackfillerSessionTallyTests: XCTestCase {
         XCTAssertTrue(joined.contains("fully charge it"))
     }
 
+    @MainActor func testHistoricalFrontierTracksOnlyStoredOffloadAndResetsBetweenSessions() async {
+        // v25 fixtures carry motion only. Inject decoded HR to exercise the persistence boundary,
+        // including out-of-order timestamps, independently of firmware-specific HR layouts.
+        let backfiller = Backfiller(store: TallyStore(), deviceId: "test", ackTrim: { _, _ in },
+                                   extract: { _, _, _, _, _ in
+            var streams = Streams()
+            streams.hr = [HRSample(ts: 1_781_206_294, bpm: 70), HRSample(ts: 1_781_206_292, bpm: 72)]
+            return streams
+        })
+        backfiller.begin(family: .whoop4)
+        XCTAssertNil(backfiller.sessionHistoricalHRFrontier)
+        for frame in v25RecordFrames { await backfiller.ingest(frame) }
+        XCTAssertNil(backfiller.sessionHistoricalHRFrontier, "receiving bytes is not persistence")
+        await backfiller.ingest(historyEndFrame(trim: 123))
+        XCTAssertEqual(backfiller.sessionHistoricalHRFrontier, 1_781_206_294)
+        backfiller.begin(family: .whoop4)
+        XCTAssertNil(backfiller.sessionHistoricalHRFrontier, "the previous offload cannot mark a new one caught up")
+        await backfiller.ingest(historyEndFrame(trim: 124))
+        XCTAssertNil(backfiller.sessionHistoricalHRFrontier, "console-only completion has no history frontier")
+    }
+
     // MARK: - #1683: the stale counterpart to futureRtcLine
 
     /// A strap that stopped banking weeks ago and one that is caught up produced the SAME "banked no

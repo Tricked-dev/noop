@@ -6,6 +6,49 @@ import XCTest
 /// drifts from Kotlin fails here (the app-target copies were Kotlin-tested only before this extraction).
 final class DataRangeTests: XCTestCase {
 
+    func testLiveAndEventOpcodeCollisionsCannotMoveTheHistoryWindow() {
+        // Synthetic packets with an opcode collision at the response dispatch offset.
+        for type: UInt8 in [40, 48] {
+            let frame = frameFromPayload([UInt8](repeating: 0, count: 17),
+                                         type: type, seq: 1, cmd: getDataRangeOpcode)
+            XCTAssertTrue(verifyFrame(frame, family: .whoop4).ok)
+            XCTAssertEqual(frame[6], getDataRangeOpcode)
+            XCTAssertFalse(DataRange.acceptsReply(frame, cmdOff: 6, opcode: getDataRangeOpcode,
+                                                 verdictOK: true))
+        }
+    }
+
+    func testReplyGateRequiresCommandResponseTypeOnBothEnvelopes() {
+        for family: DeviceFamily in [.whoop4, .whoop5] {
+            let cmdOff = family == .whoop4 ? 6 : 10
+            for type: UInt8 in [35, 36, 40, 43, 47, 48, 49, 50] {
+                let frame = family == .whoop4
+                    ? frameFromPayload([0, 1, 0], type: type, seq: 1, cmd: getDataRangeOpcode)
+                    : puffinCommandFrame(cmd: getDataRangeOpcode, seq: 1, payload: [0, 1, 0], type: type)
+                XCTAssertTrue(verifyFrame(frame, family: family).ok)
+                XCTAssertEqual(DataRange.acceptsReply(frame, cmdOff: cmdOff, opcode: getDataRangeOpcode,
+                                                     verdictOK: true), type == 36)
+            }
+        }
+        for offset in [-1, 0, 1, 6, Int.max] {
+            XCTAssertFalse(DataRange.acceptsReply([], cmdOff: offset, opcode: getDataRangeOpcode,
+                                                 verdictOK: true))
+        }
+    }
+
+    func testSyntheticCommandResponseRemainsAccepted() {
+        var payload = [UInt8](repeating: 0, count: 27)
+        for (offset, value) in [(11, 64), (15, 16), (23, 128)] {
+            for byte in 0..<4 { payload[offset + byte] = UInt8((value >> (8 * byte)) & 0xff) }
+        }
+        let frame = frameFromPayload(payload, type: 36, seq: 1, cmd: getDataRangeOpcode)
+        let verdict = verifyFrame(frame, family: .whoop4)
+        XCTAssertTrue(verdict.ok)
+        XCTAssertTrue(DataRange.acceptsReply(frame, cmdOff: 6, opcode: getDataRangeOpcode,
+                                            verdictOK: verdict.ok))
+        XCTAssertEqual(DataRange.pagesBehind(from: frame, cmdOff: 6), 48)
+    }
+
     private let skew48h = 48 * 3600         // AUTO_CONTINUE_FUTURE_SKEW_SECONDS twin
     private let wallNow = 1_783_786_000      // 2026-07-11 ~16:06, just after the captured newest
     private let realNewest = 1_783_785_625   // 2026-07-11 16:00:25 (frame a)

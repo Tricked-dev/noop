@@ -1,3 +1,12 @@
+#if NOOP_TEST_HOST
+import SwiftUI
+
+/// Minimal macOS unit-test host: no app model, Bluetooth, notifications, or background services.
+@main
+struct NOOPTestHost: App {
+    var body: some Scene { WindowGroup { Color.clear } }
+}
+#else
 import SwiftUI
 import StrandDesign
 import UserNotifications
@@ -100,3 +109,5 @@ struct StrandApp: App {
         .menuBarExtraStyle(.window)
     }
 }
+
+#endif

@@ -1,6 +1,8 @@
 #if os(iOS)
 import Foundation
 import ActivityKit
+import UIKit
+import StrandAnalytics
 
 /// Starts, updates, and ends the live-HR Live Activity. The activity appears on the Lock Screen and
 /// in the Dynamic Island while the strap is bonded and streaming heart rate.
@@ -8,6 +10,7 @@ import ActivityKit
 final class LiveActivityController {
     private var activity: Activity<NOOPActivityAttributes>?
     private var lastPush: Date = .distantPast
+    private var lastContent: NOOPActivityAttributes.ContentState?
     /// Cached `ActivityAuthorizationInfo` — `update` runs at ~1 Hz off the live HR stream, and
     /// instantiating this system bridge per tick is needless allocation. ActivityKit's auth status
     /// only changes via Settings, so caching for the controller's lifetime is safe.
@@ -18,14 +21,14 @@ final class LiveActivityController {
     /// and create duplicate Live Activities.
     private var isStarting = false
     /// How long after the last push iOS may keep showing the activity as fresh. The activity is
-    /// refreshed every ~2 s while streaming, so this never bites a live session; it auto-greys a
+    /// refreshed on changes (2 s foreground / 15 s background) and at least every 60 s, so this never bites a live session; it auto-greys a
     /// frozen activity if the app is suspended/killed without an explicit end (a missed-tick safety net
     /// on top of the connected-driven end below).
     private static let staleAfter: TimeInterval = 120
 
     /// Drive the activity from the latest live values. Lazily starts when the strap is CONNECTED (the
     /// live link, not the sticky "paired" flag) and a heart rate is present; ends the moment the link
-    /// drops. Throttled to ~once every 2 s so we stay well under the Live Activity update budget.
+    /// drops. Unchanged content is renewed once a minute; changes use a slower background cadence.
     func update(bpm: Int?, recovery: Int?, connected: Bool, effort: Int? = nil) {
         guard authInfo.areActivitiesEnabled else { return }
 
@@ -58,14 +61,17 @@ final class LiveActivityController {
         let staleDate = Date().addingTimeInterval(Self.staleAfter)
 
         if let activity {
-            guard Date().timeIntervalSince(lastPush) > 2 else { return }
+            guard BackgroundWorkPolicy.activityDue(
+                elapsed: Date().timeIntervalSince(lastPush), changed: lastContent != state,
+                background: UIApplication.shared.applicationState != .active) else { return }
+            lastContent = state
             lastPush = Date()
             Task { await activity.update(ActivityContent(state: state, staleDate: staleDate)) }
         } else {
             // Set the start gate SYNCHRONOUSLY before any await so a second `update` arriving on the
             // main actor while `Activity.request` is still in flight bails here instead of issuing a
             // second request. The 2-second throttle above only guards the update path.
-            guard !isStarting else { return }
+            guard !isStarting, UIApplication.shared.applicationState == .active else { return }
             isStarting = true
             do {
                 activity = try Activity.request(
@@ -74,6 +80,7 @@ final class LiveActivityController {
                     pushType: nil
                 )
                 lastPush = Date()
+                lastContent = state
             } catch {
                 activity = nil
             }
@@ -89,6 +96,8 @@ final class LiveActivityController {
             await act.end(nil, dismissalPolicy: .immediate)
         }
         self.activity = nil
+        lastContent = nil
+        lastPush = .distantPast
     }
 }
 #endif
