@@ -729,6 +729,7 @@ public final class BLEManager: NSObject, ObservableObject {
     private var keepAliveTimer: DispatchSourceTimer?
     static let keepAliveIntervalSeconds = 30
     private var keepAliveTick = 0
+    private var keepAliveLivenessWindow = KeepAliveLivenessWindow()
     /// #battery: minimum gap between 5/MG 0x2A19 battery reads. `enableLiveNotifications` fires from the
     /// 30 s keep-alive tick AND once each from the CLIENT_HELLO-ack / post-bond callers, so without a
     /// throttle a 5/MG was READ every ~30 s — 2 880 GATT reads/day, 2× the Android twin's ~60 s cadence
@@ -4681,6 +4682,7 @@ public final class BLEManager: NSObject, ObservableObject {
 
     private func startKeepAlive() {
         keepAliveTimer?.cancel()
+        keepAliveLivenessWindow.reset()
         let s = BLEManager.keepAliveIntervalSeconds
         let t = DispatchSource.makeTimerSource(queue: .main)
         // Kept EXACT (no leeway): this tick isn't just a liveness check — `keepAliveFire` re-arms the
@@ -4724,8 +4726,24 @@ public final class BLEManager: NSObject, ObservableObject {
         // (`historyEmpty` still gates the battery-backfill interval below — a separate concern, left as-is.)
         let bounceFuse: TimeInterval =
             selectedModel.deviceFamily == .whoop5 ? 600 : 120
-        if Date().timeIntervalSince(lastDataAt) > bounceFuse {
-            log("No data for >\(Int(bounceFuse))s — bouncing link to resume streaming")
+        let watchdogNow = Date()
+        let shouldBounce: Bool
+        #if os(iOS)
+        if selectedModel.deviceFamily == .whoop4 {
+            // A delayed callback after iOS suspension is not evidence of a failed link.
+            // Let the existing battery poll run before treating silence during suspension as a
+            // failed link. No new timer, command, or polling cadence is introduced.
+            shouldBounce = keepAliveLivenessWindow.shouldReconnect(
+                now: watchdogNow.timeIntervalSince1970, lastDataAt: lastDataAt.timeIntervalSince1970,
+                silenceLimit: bounceFuse, expectedTickInterval: TimeInterval(Self.keepAliveIntervalSeconds))
+        } else {
+            shouldBounce = watchdogNow.timeIntervalSince(lastDataAt) > bounceFuse
+        }
+        #else
+        shouldBounce = watchdogNow.timeIntervalSince(lastDataAt) > bounceFuse
+        #endif
+        if shouldBounce {
+            log("No data for >\(Int(bounceFuse))s during liveness observation — reconnecting")
             if let p = peripheral { central.cancelPeripheralConnection(p) }
             return
         }
@@ -6267,6 +6285,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         backfillTimer = nil
         keepAliveTimer?.cancel()
         keepAliveTimer = nil
+        keepAliveLivenessWindow.reset()
         resetCharacteristics()
         // Best-effort, fire-and-forget: nothing below depends on this write completing, and the
         // recorder keeps writing the same session file after reconnect (#652: encode+write off-main).
