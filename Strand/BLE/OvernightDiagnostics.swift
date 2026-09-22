@@ -44,7 +44,30 @@ struct BoundedDiagnosticLog {
     }
 }
 
-/// Temporary development capture, automatically inert after its first twelve-hour window.
+/// Persist the first capture deadline; relaunches never extend or re-arm an expired capture.
+enum DiagnosticCaptureWindow {
+    static func deadline(defaults: UserDefaults, key: String, now: TimeInterval,
+                         duration: TimeInterval) -> TimeInterval {
+        if let existing = defaults.object(forKey: key) as? Double { return existing }
+        let deadline = now + duration
+        defaults.set(deadline, forKey: key)
+        return deadline
+    }
+}
+
+/// Attribute only the first valid HR notification after a request; both BLE channels share this state.
+struct LiveDataStartupTrace {
+    private(set) var startedAt: TimeInterval?
+    mutating func begin(now: TimeInterval) { if startedAt == nil { startedAt = now } }
+    mutating func cancel() { startedAt = nil }
+    mutating func finish(now: TimeInterval) -> TimeInterval? {
+        guard let start = startedAt else { return nil }
+        startedAt = nil
+        return max(0, now - start)
+    }
+}
+
+/// Temporary development capture, automatically inert after its first twenty-four-hour window.
 enum OvernightDiagnostics {
     static func shouldRecordBLE(_ message: String) -> Bool {
         if message.hasPrefix("→ Get Battery Level") || message.hasPrefix("→ Historical Data Result") {
@@ -54,23 +77,19 @@ enum OvernightDiagnostics {
                 "Backfill: foreground deferred", "Backfill: periodic", "Backfill: waiting",
                 "Backfill diagnostic:", "Sync diagnostic: subscriptions=", "Sync diagnostic: inbound=",
                 "Connected", "Disconnected", "Connecting", "Reconnecting", "Connect settled:",
-                "Central state:", "BONDED", "Notify ", "Clock", "No data for", "send(", "→ "]
+                "Central state:", "BONDED", "Notify ", "Clock", "No data for", "Signal:", "Link epitaph:", "send(", "→ "]
             .contains { message.hasPrefix($0) }
     }
 
     #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
     private static let queue = DispatchQueue(label: "noop.overnight-diagnostics", qos: .utility)
-    private static let captureUntil: TimeInterval = {
-        let defaults = UserDefaults.standard
-        let key = "diagnostics.overnight.424.endsAt"
-        if let existing = defaults.object(forKey: key) as? Double { return existing }
-        let deadline = Date().timeIntervalSince1970 + 12 * 3_600
-        defaults.set(deadline, forKey: key)
-        return deadline
-    }()
+    static let captureUntil = DiagnosticCaptureWindow.deadline(
+        defaults: .standard, key: "diagnostics.daytime.427.endsAt",
+        now: Date().timeIntervalSince1970, duration: 24 * 3_600)
+    static var isActive: Bool { Date().timeIntervalSince1970 <= captureUntil }
     private static let writer = BoundedDiagnosticLog(directory:
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("OvernightDiagnostics", isDirectory: true))
+            .appendingPathComponent("DaytimeDiagnostics", isDirectory: true))
 
     static func record(_ event: @autoclosure () -> String) {
         let now = Date().timeIntervalSince1970
@@ -83,7 +102,8 @@ enum OvernightDiagnostics {
     }
 
     static func start() {
-        record("capture-start build=424 expires=\(captureUntil) window=12h maxFiles=2 maxFileBytes=1048576")
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown"
+        record("capture-start build=\(build) expires=\(captureUntil) window=24h maxFiles=2 maxFileBytes=1048576")
     }
     #endif
 }

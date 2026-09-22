@@ -141,6 +141,14 @@ struct RootTabView: View {
             moreTab(path: $tabPaths[4], scrollSignal: scrollTop[4]).tag(4)
         }
         .tint(StrandPalette.accent)
+        #if NOOP_SYNC_DIAGNOSTICS
+        .onChangeCompat(of: selectedTab) { tab in
+            OvernightDiagnostics.record("ui-tab index=\(tab)")
+        }
+        .onChangeCompat(of: quickAction) { action in
+            OvernightDiagnostics.record("ui-sheet action=\(action.map { String(describing: $0) } ?? "closed")")
+        }
+        #endif
         // Switching Coach off while STANDING on it leaves `selectedTab` pointing at a tag no tab claims
         // any more, which renders as an empty tab rather than as an error. Send that wearer to Today, and
         // only in that case, so a flip made from anywhere else does not move them.

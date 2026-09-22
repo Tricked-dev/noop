@@ -36,4 +36,30 @@ final class OvernightDiagnosticsTests: XCTestCase {
             XCTAssertFalse(OvernightDiagnostics.shouldRecordBLE(message))
         }
     }
+    func testDaytimeDeadlineSurvivesRelaunchAndDoesNotRearmAfterExpiry() {
+        let name = "DaytimeDiagnosticsTests." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let key = "capture.endsAt"
+        let first = DiagnosticCaptureWindow.deadline(defaults: defaults, key: key, now: 100, duration: 86_400)
+        XCTAssertEqual(first, 86_500)
+        XCTAssertEqual(DiagnosticCaptureWindow.deadline(defaults: defaults, key: key,
+                                                       now: 200, duration: 86_400), first)
+        XCTAssertEqual(DiagnosticCaptureWindow.deadline(defaults: defaults, key: key,
+                                                       now: 100_000, duration: 86_400), first)
+    }
+
+    func testFirstLiveSampleIsRecordedOnceAcrossNotificationChannels() {
+        var trace = LiveDataStartupTrace()
+        XCTAssertNil(trace.finish(now: 10))
+        trace.begin(now: 20)
+        trace.begin(now: 30)
+        XCTAssertEqual(trace.finish(now: 65), 45)
+        XCTAssertNil(trace.finish(now: 66))
+        trace.begin(now: 70)
+        trace.cancel()
+        XCTAssertNil(trace.finish(now: 80))
+        trace.begin(now: 90)
+        XCTAssertEqual(trace.finish(now: 92), 2)
+    }
 }

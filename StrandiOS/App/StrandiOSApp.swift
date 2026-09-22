@@ -308,6 +308,9 @@ struct StrandiOSApp: App {
                         let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                         let snapshot: [String: Any] = [
                             "capturedAt": Date().timeIntervalSince1970,
+                            "build": Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "unknown",
+                            "captureEndsAt": OvernightDiagnostics.captureUntil,
+                            "captureDirectory": "DaytimeDiagnostics",
                             "appState": UIApplication.shared.applicationState.rawValue,
                             "connected": model.live.connected,
                             "historyReady": model.live.historyReady,

@@ -468,13 +468,29 @@ final class HealthKitBridge: ObservableObject {
     /// upserts keyed by day).
     @discardableResult
     func sync(days: Int = 30) async -> Bool {
-        guard auth == .authorized else { return false }
+        guard auth == .authorized else {
+            #if NOOP_SYNC_DIAGNOSTICS
+            OvernightDiagnostics.record("health-sync skipped=authorization")
+            #endif
+            return false
+        }
         guard !syncing else {
             // A full sync includes write-back. If new strap data is landing concurrently, guarantee one
             // final write-only reconciliation after the current owner releases the bridge.
+            #if NOOP_SYNC_DIAGNOSTICS
+            OvernightDiagnostics.record("health-request coalesced=busy")
+            #endif
             writeBackPending = true
             return false
         }
+        #if NOOP_SYNC_DIAGNOSTICS
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
+        var diagnosticOutcome = "unavailable"
+        OvernightDiagnostics.record("health-start kind=full days=\(days)")
+        defer {
+            OvernightDiagnostics.record("health-end kind=full outcome=\(diagnosticOutcome) elapsedMs=\(Int((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1_000))")
+        }
+        #endif
         syncing = true
         // #1578: time the whole pass — the ~15 aggregate reads, the upserts and the write-back. Recorded in
         // `defer` so an early or thrown exit still contributes; a pass that cost time and then failed is
@@ -692,8 +708,14 @@ final class HealthKitBridge: ObservableObject {
             // actually covered ITS days (see `observerCoalesceWindow`). Set on the success path only.
             lastSyncDays = days
             lastError = nil
+            #if NOOP_SYNC_DIAGNOSTICS
+            diagnosticOutcome = "completed"
+            #endif
             return true
         } catch {
+            #if NOOP_SYNC_DIAGNOSTICS
+            diagnosticOutcome = "error:\((error as NSError).domain):\((error as NSError).code)"
+            #endif
             // A failed sync must never let a later wake skip on the strength of it — the rows it would
             // have written are not there. Clearing the window means `window <= lastSyncDays` cannot hold.
             lastSyncDays = 0
@@ -738,19 +760,41 @@ final class HealthKitBridge: ObservableObject {
         if writeBackUnlockGate.deferUntilAvailable(isAvailable: UIApplication.shared.isProtectedDataAvailable,
                                                    retry: { [weak self] in
             Task { [weak self] in await self?.writeBackAfterNewData() }
-        }) { return true }
+        }) {
+            #if NOOP_SYNC_DIAGNOSTICS
+            OvernightDiagnostics.record("health-write deferred=locked")
+            #endif
+            return true
+        }
         guard !syncing else {
+            #if NOOP_SYNC_DIAGNOSTICS
+            OvernightDiagnostics.record("health-request coalesced=busy")
+            #endif
             writeBackPending = true
             return true
         }
+        #if NOOP_SYNC_DIAGNOSTICS
+        let diagnosticStart = ProcessInfo.processInfo.systemUptime
+        var diagnosticOutcome = "unavailable"
+        OvernightDiagnostics.record("health-start kind=write")
+        defer {
+            OvernightDiagnostics.record("health-end kind=write outcome=\(diagnosticOutcome) elapsedMs=\(Int((ProcessInfo.processInfo.systemUptime - diagnosticStart) * 1_000))")
+        }
+        #endif
         syncing = true
         defer { finishHealthPass() }
         guard let store = await repo.storeHandle() else { return false }
         do {
             try await writeBack(whoopStore: store)
             lastError = nil
+            #if NOOP_SYNC_DIAGNOSTICS
+            diagnosticOutcome = "completed"
+            #endif
             return true
         } catch {
+            #if NOOP_SYNC_DIAGNOSTICS
+            diagnosticOutcome = "error:\((error as NSError).domain):\((error as NSError).code)"
+            #endif
             lastError = String(localized: "Apple Health sync failed: \(error.localizedDescription)")
             return false
         }

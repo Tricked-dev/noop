@@ -933,6 +933,7 @@ public final class BLEManager: NSObject, ObservableObject {
     #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
     private var lastOvernightSnapshotAt: TimeInterval = 0
     private var overnightLastHRAt: TimeInterval = 0
+    private var liveStartupTrace = LiveDataStartupTrace()
     #endif
     private var restoredHistoryNotificationsPending: Bool {
         restoredNotifications.hasPending(in: [cmdNotifyCharacteristic, eventNotifyCharacteristic,
@@ -3335,6 +3336,12 @@ public final class BLEManager: NSObject, ObservableObject {
     /// the R10/R11 realtime stream is also on. Keep that stream scoped to the Live tab and stop it
     /// on disappear so it does not permanently compete with historical offload.
     public func startRealtime() {
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        if !screenWantsRealtime && OvernightDiagnostics.isActive {
+            liveStartupTrace.begin(now: ProcessInfo.processInfo.systemUptime)
+            recordOvernightStatus(reason: "live-request")
+        }
+        #endif
         screenWantsRealtime = true
         state.liveFeedActive = true   // drives the menu-bar Start/Stop label off the real intent
         // The user explicitly (re-)asked for the full stream by opening Live / tapping Start HR — give the
@@ -3360,6 +3367,12 @@ public final class BLEManager: NSObject, ObservableObject {
     /// the reconciler sends it on the on→off edge of the combined want, so a Live screen closing while
     /// continuous capture is on keeps the dense stream flowing.
     public func stopRealtime() {
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        if screenWantsRealtime {
+            OvernightDiagnostics.record("live-stop firstSamplePending=\(liveStartupTrace.startedAt != nil)")
+            liveStartupTrace.cancel()
+        }
+        #endif
         screenWantsRealtime = false
         state.liveFeedActive = false   // flip the menu-bar toggle back to "Start live feed"
         // Always stop the heavy R10/R11 burst when the Live screen leaves — it's the battery-hungry part
@@ -4787,7 +4800,17 @@ public final class BLEManager: NSObject, ObservableObject {
         //
         // The stash is written in `didReadRSSI`, not here: a request that never answers must leave the
         // previous reading's AGE growing rather than stamping a fresh time on a stale value.
-        if let p = peripheral,
+        // On iPhone the additional signal read belongs only to this bounded development capture.
+        #if os(iOS)
+        #if NOOP_SYNC_DIAGNOSTICS
+        let captureSignal = OvernightDiagnostics.isActive
+        #else
+        let captureSignal = false
+        #endif
+        #else
+        let captureSignal = true
+        #endif
+        if captureSignal, let p = peripheral,
            Date().timeIntervalSince(lastRssiReadAt ?? .distantPast) >= BLEManager.rssiReadIntervalSeconds {
             lastRssiReadAt = Date()
             p.readRSSI()
@@ -5033,7 +5056,14 @@ public final class BLEManager: NSObject, ObservableObject {
     }
 
     #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+    private func recordFirstLiveSample(source: String) {
+        guard OvernightDiagnostics.isActive,
+              let elapsed = liveStartupTrace.finish(now: ProcessInfo.processInfo.systemUptime) else { return }
+        OvernightDiagnostics.record("live-first-sample source=\(source) elapsedMs=\(Int(elapsed * 1_000)) syncing=\(backfilling)")
+    }
+
     func recordOvernightStatus(reason: String) {
+        guard OvernightDiagnostics.isActive else { return }
         let now = Date().timeIntervalSince1970
         let gap = lastOvernightSnapshotAt == 0 ? -1 : now - lastOvernightSnapshotAt
         lastOvernightSnapshotAt = now
@@ -5685,7 +5715,10 @@ public final class BLEManager: NSObject, ObservableObject {
         }
         let now = Date()
         #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-        if (30...220).contains(m.hr) { overnightLastHRAt = now.timeIntervalSince1970 }
+        if (30...220).contains(m.hr) {
+            overnightLastHRAt = now.timeIntervalSince1970
+            recordFirstLiveSample(source: "standard-hr")
+        }
         #endif
         if lastStandardHRLogAt.map({ now.timeIntervalSince($0) >= 30 }) ?? true {
             lastStandardHRLogAt = now
@@ -7383,6 +7416,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
                 if parsed.ok, let hr = parsed.parsed["heart_rate"]?.intValue, (30...220).contains(hr) {
                     overnightLastHRAt = Date().timeIntervalSince1970
+                    recordFirstLiveSample(source: "realtime-frame")
                 }
                 #endif
                 //
