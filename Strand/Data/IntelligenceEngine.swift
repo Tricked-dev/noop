@@ -46,6 +46,9 @@ final class IntelligenceEngine: ObservableObject {
     /// `defer` re-invokes `analyzeRecent(force: true)` ONCE when it clears. A single re-arm (the flag is
     /// cleared BEFORE the re-invoke) bounds it to one extra pass , no recompute storm.
     private var pendingForcedRescore = false
+    /// Uptime the pass holding `computing` started at, and how many days it covers; nil when none is running.
+    private var runningPassStart: UInt64?
+    private var runningPassDays = 0
     /// #899 heal bound: true while the last heal already re-armed a rescore, so a heal firing again on
     /// the very next pass cannot re-arm a second time (the Android twin is hard-bounded to exactly one
     /// re-pass; this mirrors it). Reset by any pass whose heal finds nothing, restoring the budget.
@@ -415,11 +418,35 @@ final class IntelligenceEngine: ObservableObject {
                                                       providedCount: Int, windowHours: Int,
                                                       skinCount: Int) -> String {
         // `reason` names WHICH absence this is, because grav=0 is printed but its consequence is not.
-        // With no motion the stager has no HR-only fallback, so no quantity of HR can stage a night — a
-        // strap capability limit, not a coverage gap, and the two want completely different follow-ups.
-        // With motion present the inputs were there and staging still produced nothing, which is the case
-        // actually worth investigating.
-        let reason = gravCount == 0 ? "no-motion" : "staged-none"
+        //
+        // `no-motion` USED to mean "and therefore nothing further was attempted" — the stager had no
+        // HR-only fallback, so no quantity of HR could stage a night. Since #1801 it does: a day with no
+        // gravity now also runs `SleepStager.hrOnlySessions`.
+        //
+        // Which is why grav=0 alone can no longer name the outcome. A 5/MG overnight capture showed this
+        // line reading `no-motion` while the HR-only spine on the SAME pass kept four sessions, the
+        // longest 311 minutes, and handed them over as `provided=3`. The reader was told nothing could
+        // stage a night while the log above said something had. So the no-gravity case splits by whether
+        // anything was actually provided:
+        //
+        //   no-motion                 no gravity, and nothing was provided either
+        //   no-motion-provided-unused no gravity, sessions WERE provided, and the night is still empty —
+        //                             they went in and no night came out, which is a question about what
+        //                             dropped them rather than about the strap
+        //
+        // Note "provided", not "HR-only". With no gravity `providedSleep` is the HR-only spine's output
+        // in the no-hypnogram branch, but it is STORED sessions in the stored-hypnogram one, and from
+        // here the two are indistinguishable. Naming the source would repeat the very over-claim this
+        // split exists to remove. The `[sleep] hr-only gate` trace is what says which branch ran.
+        //
+        // With motion present the inputs were there and staging still produced nothing, which remains the
+        // case most worth investigating.
+        let reason: String
+        if gravCount > 0 {
+            reason = "staged-none"
+        } else {
+            reason = providedCount > 0 ? "no-motion-provided-unused" : "no-motion"
+        }
         // #1118 follow-up: name any stream that came back AT its read cap. A read that returns exactly the
         // limit is the definition of truncated everywhere else here (`full.count >= limit`), and it is the
         // one thing a reader cannot infer from the counts alone — `grav=192698` looks healthy until you
@@ -656,7 +683,18 @@ final class IntelligenceEngine: ObservableObject {
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
         // until the next cycle. Re-arm instead: flag it so the running pass's `defer` re-invokes once.
-        guard !computing else { if force { pendingForcedRescore = true }; return }
+        guard !computing else {
+            if force {
+                // Said once per running pass, not per trigger: a pass that holds the lock for hours otherwise
+                // turns every post-offload re-score into a silent no-op, and the log shows syncs but no scores.
+                if !pendingForcedRescore, let started = runningPassStart {
+                    let heldFor = Int(Double(DispatchTime.now().uptimeNanoseconds &- started) / 1_000_000_000)
+                    diagnosticSink?("re-score: queued behind a \(runningPassDays)-day pass running for \(heldFor) s", nil)
+                }
+                pendingForcedRescore = true
+            }
+            return
+        }
         guard let store = await repo.storeHandle() else { note = String(localized: "No on-device store yet."); return }
         guard let hrvCfg = Baselines.metricCfg["hrv"],
               let rhrCfg = Baselines.metricCfg["resting_hr"],
@@ -735,7 +773,11 @@ final class IntelligenceEngine: ObservableObject {
         // also counts every minute the process spent suspended mid-pass. One overnight pass suspended by a
         // sleeping phone banked 19 003 s, which then deferred every background re-score after it.
         let reScoreStart = DispatchTime.now().uptimeNanoseconds
+        let reScoreCPUStart = RescoreBackgroundScheduler.processCPUSeconds()
+        let reScoreExpiriesAtStart = RescoreBackgroundScheduler.assertionExpiries
         computing = true
+        runningPassStart = reScoreStart
+        runningPassDays = maxDays
         // #1538: the pass is now past every gate and will do real work. Mark it started durably, so that a
         // process killed mid-pass leaves evidence a LATER process can read — the killed process itself gets
         // no chance to record anything. Cleared beside the watermark at the end; there is no early return
@@ -753,7 +795,7 @@ final class IntelligenceEngine: ObservableObject {
         // state that skipped the capture and just cleared, which is exactly where #1681 lived. The
         // Kotlin post-offload gate makes the same point in its own words: "captured before the run,
         // written only on success".
-        let owedToken = RescoreBackgroundScheduler.markRescoreOwed()
+        let owedToken = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
         // #899-A re-arm: clear the lock, then if a forced rescore was dropped while this pass held it,
         // run it ONCE. The flag is cleared BEFORE the re-invoke (a single re-arm), so a forced call landing
         // DURING the re-invoke re-arms it again but a quiet one does not , this can never recurse unbounded.
@@ -761,6 +803,7 @@ final class IntelligenceEngine: ObservableObject {
         // `computing` is already false, so its own `guard !computing` passes and it rescores the new data.
         defer {
             computing = false
+            runningPassStart = nil
             if pendingForcedRescore {
                 pendingForcedRescore = false
                 // Carry THIS pass's window into the re-pass: a heal firing during a wide one-shot pass
@@ -2851,6 +2894,11 @@ final class IntelligenceEngine: ObservableObject {
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- reScoreStart) / 1_000_000_000
         let settled = RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed, owedToken: owedToken)
         diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
+        diagnosticSink?(RescoreBackgroundScheduler.passCostLogLine(
+            cpuSeconds: RescoreBackgroundScheduler.processCPUSeconds().flatMap { end in reScoreCPUStart.map { end - $0 } },
+            elapsedSeconds: elapsed,
+            assertionExpiries: RescoreBackgroundScheduler.assertionExpiries - reScoreExpiriesAtStart,
+            backgroundedAtEnd: RescoreBackgroundScheduler.isBackgrounded), nil)
         // #1681: a pass that completes while leaving the mark SET looks identical in a capture to one that
         // cleared it. Rare-event evidence, so always-on: it costs a line only when it actually happens,
         // and it is exactly what is missing when someone reports the app re-scoring on every launch.
