@@ -181,6 +181,37 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
   that identified the bug. Gate per-connect readouts behind the Test Centre domain; leave rare-event
   evidence (a state transition, a mismatch) always-on, since it costs nothing when nothing happens and is
   what is missing when someone reports a problem without Test Centre enabled.
+- **Two readouts of one fact must not be able to disagree.** The same rule as the bullet above, one
+  layer up: it applies to what a SCREEN states, not only to what a log line claims. The Alarms screen is
+  the worked example. It carried two pickers both labelled "Wake time", holding different values, only
+  one of which woke anybody (#2353), and the per-day list under the wind-down card silently re-timed the
+  strap alarm while its copy said it moved the reminder (#1864). The repair work then introduced the
+  same shape five more times: a line naming the base alarm time where an override day fires at another,
+  a card that hid where its own time came from, a countdown for an alarm that would never arm, a
+  countdown and its date stamp resolved from two clocks a tick apart, and a deadline printed three times
+  in one card.
+  Three defences, in order of preference: do not show the fact twice (the second copy is usually noise,
+  as a date stamp beside figures that already carry the time); when it must appear twice, resolve both
+  from ONE gated funnel and ONE clock, passed in rather than read separately; and gate that funnel on
+  whether the thing will actually happen, since a countdown is a promise and an unarmed alarm has none
+  to make. Counting gated call sites is the weak version of that last test and it passes while a fourth
+  reader resolves the fact by itself: assert the single resolver instead.
+- **A gate must be able to fail on the change that caused it.** The same rule again, moved out to CI:
+  when a check cannot see what invalidates it, the failure lands on whoever pushes next and reads as
+  their fault. Three live instances, all hit in one day. The parity-governance path filter excludes
+  product source, so ordinary feature merges move the derived sets, the stored authority stops
+  reproducing, and nothing reports it until the 04:17 schedule fails against a commit that changed
+  none of it; that needed hand repair twice in a day, and in between, a contributor running
+  `parity_ratchet.py --base upstream/main` gets an error belonging to main rather than to their branch.
+  The governance discovery floor is an exact count, so a legitimate future removal of one test prints
+  "discovery is broken, not the suite" on main against a change that removed nothing. And GitHub's
+  fork-PR approval gate re-arms on every force-push, parking workflows at `action_required`, which the
+  check-runs API reports as a total of zero rather than as a failure.
+  Two defences. Never gate a CI poll on `failures == 0`: an approval-parked or not-yet-registered roster
+  has no failures and is not green. Require `non-success == 0` plus a stable total plus a roster floor
+  for the paths touched, which is the only thing that stopped a PR merging with its compile legs unrun
+  (#2343). And where a gate's trigger structurally cannot include what invalidates it, say so in the
+  error text, so the person holding the failure can tell whose it is.
 - **Device / strap model resolution:** map a registry `model` label to a family through the ONE
   canonical resolver (`DeviceFamily.forRegistryModel` on both platforms), never a scattered
   string compare — the wizard stores `"4.0"`, other paths `"WHOOP 4.0"`, and single-spelling checks
