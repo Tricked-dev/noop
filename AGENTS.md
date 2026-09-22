@@ -286,3 +286,13 @@ Swift, you MUST build the app yourself: `xcodebuild … build` locally, or run `
 
 When in doubt, open an issue to coordinate first, and prefer the smallest change that's correct and
 covered by a test that runs without a strap.
+
+## Fork publication boundary
+
+Repository-facing text must describe code behavior and reproducible checks, not personal development
+or device activity. Keep installation/deployment records, capture timelines and measurements, account
+or signing identifiers, personal storage locations, and conversation context out of tracked files
+and commit messages. Use synthetic inputs for new regression fixtures; never copy a private device
+capture into a public test. Keep local signing overrides in ignored configuration. Author identity
+explicitly selected for Git commits is separate from device/signing identity. Retain upstream credits
+in documentation without adding PR cross-links or account mentions to newly authored commit messages.
