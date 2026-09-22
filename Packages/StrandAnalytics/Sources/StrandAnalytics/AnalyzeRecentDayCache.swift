@@ -13,7 +13,8 @@ import Foundation
 /// `analyzeDay`. A miss is byte-for-byte the current full path; the cache never touches banking (every day
 /// still flows into pass 2), so there is no data-loss surface.
 ///
-/// The cache is in-memory and per-device — it never persists and never crosses the `.noopbak` boundary — so
+/// This lightweight key covers warm reuse; disk reuse also requires an exact raw-content witness. Neither
+/// cache crosses the `.noopbak` boundary, so
 /// it only has to invalidate correctly on one platform; the Kotlin twin (`AnalyzeRecentDayCache`) mirrors
 /// the shape but the two key strings are NOT required to match byte-for-byte across platforms.
 public enum AnalyzeRecentDayCache {

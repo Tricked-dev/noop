@@ -116,7 +116,7 @@ final class LiveSessionRunner: ObservableObject {
         engine = LiveSessionEngine(config: config, startTs: now)
 
         // Arm the live feed for the session (a WHOOP 5/MG only streams HR while armed, #681).
-        model.startRealtimeHR()
+        model.setRealtimeSession(.liveCoaching, active: true)
 
         // Bank the in-progress row immediately (endTs nil) — a mid-session crash still leaves a record.
         persist(row(endTs: nil, band: band))
@@ -150,7 +150,7 @@ final class LiveSessionRunner: ObservableObject {
         timer = nil
         hrSink?.cancel()
         hrSink = nil
-        model?.stopRealtimeHR()
+        model?.setRealtimeSession(.liveCoaching, active: false)
 
         // Prefer the engine's live band (it may have drifted its ceiling on a strong day) over the base.
         let final = row(endTs: Int(Date().timeIntervalSince1970), band: output?.band ?? baseBand

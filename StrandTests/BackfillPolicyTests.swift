@@ -63,6 +63,25 @@ final class BackfillPolicyTests: XCTestCase {
     private let fe = BackfillPolicy.eventFloorSeconds      // 90
     private let fp = BackfillPolicy.periodicFloorSeconds   // 900
 
+    func testPhonePowerSavingDelaysAutomaticSyncButPreservesExplicitAndOngoingWork() {
+        for trigger in [BackfillTrigger.periodic, .strap] {
+            XCTAssertFalse(BackfillPolicy.shouldRun(trigger: trigger, now: 3599, lastBackfillAt: 0,
+                                                    backgroundLowPower: true))
+            XCTAssertTrue(BackfillPolicy.shouldRun(trigger: trigger, now: 3600, lastBackfillAt: 0,
+                                                   backgroundLowPower: true))
+            XCTAssertTrue(BackfillPolicy.shouldRun(trigger: trigger, now: 3600, lastBackfillAt: nil,
+                                                   backgroundLowPower: true))
+        }
+        for trigger in [BackfillTrigger.manual, .autoContinue] {
+            XCTAssertTrue(BackfillPolicy.shouldRun(trigger: trigger, now: 1, lastBackfillAt: 0,
+                                                   backgroundLowPower: true))
+        }
+        for trigger in [BackfillTrigger.connect, .foreground] {
+            XCTAssertTrue(BackfillPolicy.shouldRun(trigger: trigger, now: 90, lastBackfillAt: 0,
+                                                   backgroundLowPower: true))
+        }
+    }
+
     func testUserStopBlocksAllAutomaticTriggersEvenWithoutPreviousSyncStamp() {
         for trigger in [BackfillTrigger.periodic, .strap, .connect, .foreground, .autoContinue] {
             for last: Double? in [nil, 0] {

@@ -64,10 +64,31 @@ final class IntelligenceEngine: ObservableObject {
     /// stream reads + `analyzeDay`. FAIL-SAFE — a miss, any un-cacheable owner, any active Test-Centre
     /// trace, or a config change all fall through to the identical full path; the cache only ever skips the
     /// analyzeDay STAGE, so pass 2 (baselines, recovery recompute, stale-day eviction, heal) is byte-
-    /// unaffected and there is no banking / data-loss surface. In-memory + per-device; never persisted,
-    /// never crosses `.noopbak`. The engine is a single long-lived instance (AppModel), so this survives the
+    /// unaffected and there is no banking / data-loss surface. Closed-day results also have a disposable
+    /// disk cache, validated against raw content on cold reuse and excluded from `.noopbak`. This survives the
     /// storm's back-to-back passes the drain is made of. See `AnalyzeRecentDayCache` (StrandAnalytics).
     private var dayScanCache: [String: (key: String, scan: DayScan)] = [:]
+    private struct DiskDay: Codable, Equatable {
+        let key: String
+        let witness: String
+        let scan: DayScan
+    }
+    private var diskDays: [String: DiskDay] = [:]
+    private var loadedDiskDays = false
+    private var lastDiskData: Data?
+    private var persistedDiskConfiguration: String?
+    private var diskConfiguration: String?
+    private static var dayCacheURL: URL? {
+        FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first?
+            .appendingPathComponent("noop-day-scans-v1.plist")
+    }
+    private static var dayCacheBuild: String {
+        let bundle = Bundle.main
+        return "day-scan-v1|" + (bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
+            + "|" + (bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "")
+            + "|" + Locale.current.identifier + "|" + (Locale.preferredLanguages.first ?? "")
+    }
+
     /// UserDefaults key holding the persisted `stepsMotionCache` payload. Versioned in the key as well as
     /// in the payload header so a format change cannot even be read, let alone half-parsed.
     private static let stepsMotionCacheDefaultsKey = "analyzeRecent.stepsMotionCache.v1"
@@ -194,7 +215,7 @@ final class IntelligenceEngine: ObservableObject {
     /// returned a `DayResult` across the `Task.detached` boundary under this project's `minimal` strict-
     /// concurrency setting (SWIFT_STRICT_CONCURRENCY: minimal, Swift 5 mode) , this wraps the same value
     /// type the same way, so it crosses the boundary identically.
-    private struct DayScan {
+    private struct DayScan: Codable, Equatable {
         let result: AnalyticsEngine.DayResult
         let rhrLine: String?
         /// #1943 measure-only bin-population line (see `SleepStager.rhrBinGateLogLine`); nil on a clean
@@ -1025,6 +1046,21 @@ final class IntelligenceEngine: ObservableObject {
             "\(effortMethodGlobal)",
             dayCycleMode.rawValue,
         ].joined(separator: "|")
+        let diskConfig = dayCacheConfigSig + "|device=\(deviceId)|weight=\(up.weightKg.bitPattern)|height=\(up.heightCm.bitPattern)"
+            + "|traces=\(sleepTraceActive),\(hrvTraceActive),\(stepsTraceActive)"
+        if let previous = diskConfiguration, previous != diskConfig { diskDays.removeAll() }
+        diskConfiguration = diskConfig
+        if !loadedDiskDays {
+            loadedDiskDays = true
+            let url = Self.dayCacheURL
+            let data = await Task.detached(priority: .utility) { url.flatMap { try? Data(contentsOf: $0) } }.value
+            if let data, let envelope = try? PropertyListDecoder().decode(ValidatedCache<[String: DiskDay]>.self, from: data),
+               let entries = envelope.value(build: Self.dayCacheBuild, configuration: diskConfig) {
+                diskDays = entries
+                lastDiskData = data
+                persistedDiskConfiguration = diskConfig
+            }
+        }
         // Drop the whole cache on a config change, then snapshot it into a Sendable `let` for the detached
         // loop (the engine is @MainActor; the loop can't touch `self`). The loop returns the updated cache
         // and we write it back after `.value`.
@@ -1040,9 +1076,10 @@ final class IntelligenceEngine: ObservableObject {
             dayCacheConfigDropped = true
         }
         let inDayScanCache = dayScanCache
+        let inDiskDays = diskDays
 
-        let (scanned, skippedDayLines, updatedDayScanCache):
-            ([DayScan], [String], [String: (key: String, scan: DayScan)]) = await Task.detached(priority: .utility) {
+        let (scanned, skippedDayLines, updatedDayScanCache, updatedDiskDays):
+            ([DayScan], [String], [String: (key: String, scan: DayScan)], [String: DiskDay]) = await Task.detached(priority: .utility) {
             var out: [DayScan] = []
             // Days skipped below (too few HR samples) never get a DayScan, so this diagnostic can't ride
             // along on one; carried out alongside `out` and replayed through `diagnosticSink` on the main
@@ -1065,6 +1102,7 @@ final class IntelligenceEngine: ObservableObject {
             // returned so it can be written back after `.value`. `dayCacheReused` counts hits for a one-line
             // diagnostic carried on `skippedDayLines`.
             var dayScanCacheLocal = inDayScanCache
+            var diskDaysLocal = inDiskDays
             var dayCacheReused = 0
             // #2073: WHY a night missed, tallied by cause. The reuse count alone cannot separate "today's
             // heart rate grew" from "something shared by all 21 keys moved", and those need different fixes.
@@ -1141,6 +1179,11 @@ final class IntelligenceEngine: ObservableObject {
                 // baselines1/toggles) already dropped the whole cache above on change. A miss falls straight
                 // through to the identical full path.
                 var dayCacheKey: String? = nil
+                var diskWitness: String?
+                // Persist only closed days. The current day's end is still moving.
+                let persistDay = offset > 0
+                let witnessFrom = min(from, dayStart)
+                let witnessTo = max(to, dayStart + 86_400 - 1)
                 if dayCacheEligible,
                    let ownerFamily = DeviceFamily.forRegistryDevice(
                         model: regDevices.first(where: { $0.id == owner })?.model,
@@ -1179,6 +1222,13 @@ final class IntelligenceEngine: ObservableObject {
                             // path exactly as it was.
                             hrvWindowDetail: hrvTraceActive && dayStart == nowLocalMidnight)
                         dayCacheKey = key
+                        if persistDay, dayScanCacheLocal[day]?.key != key {
+                            diskWitness = try? await store.analysisContentDigest(from: witnessFrom, to: witnessTo)
+                            if let saved = diskDaysLocal[day], saved.key == key,
+                               let witness = diskWitness, saved.witness == witness {
+                                dayScanCacheLocal[day] = (key: key, scan: saved.scan)
+                            }
+                        }
                         if dayScanCacheLocal[day] == nil {
                             // No entry at all: a first pass, a night new to the window, or a cache just
                             // dropped wholesale. Counted so a total miss always carries a cause.
@@ -1733,6 +1783,12 @@ final class IntelligenceEngine: ObservableObject {
                 // days `continue`d above and never reach here, so the cache only ever holds fresh scans.
                 if let key = dayCacheKey {
                     dayScanCacheLocal[day] = (key: key, scan: scan)
+                    // Never attach a witness to a scan if ingestion changed its inputs mid-read.
+                    if let before = diskWitness,
+                       let after = try? await store.analysisContentDigest(from: witnessFrom, to: witnessTo),
+                       before == after {
+                        diskDaysLocal[day] = DiskDay(key: key, witness: before, scan: scan)
+                    } else { diskDaysLocal.removeValue(forKey: day) }
                     dayCacheCacheable += 1
                 }
                 out.append(scan)
@@ -1742,6 +1798,7 @@ final class IntelligenceEngine: ObservableObject {
             let dayCacheWindow = Set((0..<maxDays).map {
                 AnalyticsEngine.dayString(nowLocalMidnight - $0 * 86_400, offsetSec: tzOffset) })
             dayScanCacheLocal = dayScanCacheLocal.filter { dayCacheWindow.contains($0.key) }
+            diskDaysLocal = diskDaysLocal.filter { dayCacheWindow.contains($0.key) }
             if let line = skippedSleepDaysLine(skippedSleepDays, minHrSamples: IntelligenceEngine.minHrSamples) {
                 skippedDayLines.append(line)
             }
@@ -1780,11 +1837,34 @@ final class IntelligenceEngine: ObservableObject {
                 rrTruncated: rrWindow.truncatedReads,
                 hrOwnerFlips: hrWindow.ownerFlips, rrOwnerFlips: rrWindow.ownerFlips,
                 hrReuseOff: hrWindow.reuseOffReads, rrReuseOff: rrWindow.reuseOffReads))
-            return (out, skippedDayLines, dayScanCacheLocal)
+            return (out, skippedDayLines, dayScanCacheLocal, diskDaysLocal)
         }.value
         // #1005: write the loop's updated reuse cache back to the (main-actor) stored property. The pass ran
         // to completion above (`.value` awaited), so there is no concurrent access.
         dayScanCache = updatedDayScanCache
+        let diskChanged = diskDays != updatedDiskDays || persistedDiskConfiguration != diskConfig
+        diskDays = updatedDiskDays
+        if diskChanged {
+            let envelope = ValidatedCache(build: Self.dayCacheBuild, configuration: diskConfig, payload: updatedDiskDays)
+            let cacheURL = Self.dayCacheURL
+            let previousDiskData = lastDiskData
+            lastDiskData = await Task.detached(priority: .utility) {
+                let encoder = PropertyListEncoder(); encoder.outputFormat = .binary
+                guard let data = try? encoder.encode(envelope), data.count <= 16_000_000,
+                      let url = cacheURL else { return previousDiskData }
+                guard data != previousDiskData else { return data }
+                do {
+                    try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    #if os(iOS)
+                    try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    #else
+                    try data.write(to: url, options: .atomic)
+                    #endif
+                    return data
+                } catch { return previousDiskData }
+            }.value
+            if lastDiskData != previousDiskData { persistedDiskConfiguration = diskConfig }
+        }
         // #1538: the pass after the day loop was never measured. The cost line above brackets the loop and
         // is emitted the moment it returns, so a pass whose time went somewhere later reported a small
         // prep/score and no account of the rest — which is where the steps calibration was re-folding sixty

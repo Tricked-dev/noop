@@ -2,6 +2,38 @@ import XCTest
 @testable import StrandAnalytics
 
 final class BackgroundWorkPolicyTests: XCTestCase {
+    func testRSSIRelaxesOnlyForHealthyBackgroundLinks() {
+        func due(_ elapsed: Double?, background: Bool = true, silent: Double = 0,
+                 rssi: Int? = -60, detailed: Bool = false) -> Bool {
+            BackgroundWorkPolicy.rssiDue(elapsed: elapsed, background: background, silentFor: silent,
+                                         lastRSSI: rssi, detailedDiagnostics: detailed)
+        }
+        XCTAssertFalse(due(299))
+        XCTAssertTrue(due(300))
+        XCTAssertTrue(due(60, background: false))
+        XCTAssertTrue(due(60, silent: 60))
+        XCTAssertTrue(due(60, rssi: -90))
+        XCTAssertTrue(due(60, rssi: nil))
+        XCTAssertTrue(due(60, detailed: true))
+        XCTAssertTrue(due(nil))
+        XCTAssertTrue(due(-1))
+    }
+
+    func testHostPowerSavingNeverShortensAnExistingOffloadInterval() {
+        XCTAssertEqual(BackgroundWorkPolicy.offloadInterval(base: 900, backgroundLowPower: true), 3600)
+        XCTAssertEqual(BackgroundWorkPolicy.offloadInterval(base: 7200, backgroundLowPower: true), 7200)
+        XCTAssertEqual(BackgroundWorkPolicy.offloadInterval(base: 900, backgroundLowPower: false), 900)
+    }
+
+    func testHeldNightAndVitalsSurviveUntilSourceCloses() {
+        let existing = ["closed", "open"]
+        let scoped = existing.filter { HealthExportScope.includes($0, holding: ["open"]) }
+        XCTAssertEqual(ExportSampleDiff.plan(existing: scoped, desired: []).remove, [0])
+        XCTAssertFalse(HealthExportScope.includes(200, holding: Set([200])))
+        XCTAssertTrue(HealthExportScope.includes(100, holding: Set([200])))
+        let closed = existing.filter { HealthExportScope.includes($0, holding: []) }
+        XCTAssertEqual(ExportSampleDiff.plan(existing: closed, desired: []).remove, [0, 1])
+    }
 
     func testActivityDeduplicatesButRenewsBeforeStaleDeadline() {
         XCTAssertFalse(BackgroundWorkPolicy.activityDue(elapsed: 59, changed: false, background: true))
@@ -9,6 +41,20 @@ final class BackgroundWorkPolicyTests: XCTestCase {
         XCTAssertFalse(BackgroundWorkPolicy.activityDue(elapsed: 14, changed: true, background: true))
         XCTAssertTrue(BackgroundWorkPolicy.activityDue(elapsed: 15, changed: true, background: true))
         XCTAssertTrue(BackgroundWorkPolicy.activityDue(elapsed: 2, changed: true, background: false))
+    }
+    func testSilentWhoop4KeepsLivenessProbeCadence() {
+        XCTAssertTrue(BackgroundWorkPolicy.relaxedBatteryPolling(background: true, whoop4: true, silentFor: 59))
+        XCTAssertFalse(BackgroundWorkPolicy.relaxedBatteryPolling(background: true, whoop4: true, silentFor: 60))
+        XCTAssertTrue(BackgroundWorkPolicy.relaxedBatteryPolling(background: true, whoop4: false, silentFor: 60))
+        XCTAssertFalse(BackgroundWorkPolicy.relaxedBatteryPolling(background: false, whoop4: false, silentFor: 0))
+    }
+    func testBatteryForegroundChargingAndClockRollback() {
+        XCTAssertFalse(BackgroundWorkPolicy.batteryDue(elapsed: 299, background: true, charging: false))
+        XCTAssertTrue(BackgroundWorkPolicy.batteryDue(elapsed: 300, background: true, charging: false))
+        XCTAssertTrue(BackgroundWorkPolicy.batteryDue(elapsed: 60, background: false, charging: false))
+        XCTAssertTrue(BackgroundWorkPolicy.batteryDue(elapsed: 30, background: true, charging: true))
+        XCTAssertTrue(BackgroundWorkPolicy.batteryDue(elapsed: nil, background: true, charging: false))
+        XCTAssertTrue(BackgroundWorkPolicy.batteryDue(elapsed: -1, background: true, charging: false))
     }
 
     func testExportRetryAfterPartialSaveDoesNotRewriteSuccessfulRecords() {

@@ -22,7 +22,12 @@ import WhoopStore
 final class LiftSessionController: ObservableObject {
 
     /// The running session, or nil when none is in flight.
-    @Published private(set) var engine: LiftSessionEngine?
+    @Published private(set) var engine: LiftSessionEngine? {
+        didSet {
+            let wasActive = oldValue != nil && oldValue?.isFinished == false
+            if wasActive != isActive { setRealtimeDemand(isActive) }
+        }
+    }
     @Published private(set) var programId: String?
     @Published private(set) var programName: String?
     /// Ticks every second while a session runs, so views can redraw clocks off one shared timer
@@ -80,6 +85,8 @@ final class LiftSessionController: ObservableObject {
     @Published private var lastSession: [String: [Int: LiftSetCarry]] = [:]
     private var ticker: AnyCancellable?
 
+    /// Recording demand follows the session, independently of whether its sheet is visible.
+    private let setRealtimeDemand: (Bool) -> Void
     /// Fires the strap buzz. Injected so the controller has no opinion about BLE and stays testable.
     private let buzz: (UInt8) -> Void
     /// Claims/releases the strap's double-tap for the session's lifetime.
@@ -94,7 +101,9 @@ final class LiftSessionController: ObservableObject {
     static let restWarningLeadSec = 5
 
     init(buzz: @escaping (UInt8) -> Void,
-         setStrapHandler: @escaping ((() -> Void)?) -> Void) {
+         setStrapHandler: @escaping ((() -> Void)?) -> Void,
+         setRealtimeDemand: @escaping (Bool) -> Void = { _ in }) {
+        self.setRealtimeDemand = setRealtimeDemand
         self.buzz = buzz
         self.setStrapHandler = setStrapHandler
     }

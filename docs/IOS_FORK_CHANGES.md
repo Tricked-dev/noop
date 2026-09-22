@@ -1,8 +1,7 @@
 # iOS development changes
 
-This branch contains iOS sync and live-stream fixes, bounded local diagnostics, and selected upstream
-Apple changes. Android is outside the branch's implementation scope; cross-platform parity is not
-claimed. Generated artifacts, device captures, deployment records, and signing overrides stay local.
+This branch contains iOS sync and live-stream fixes, bounded local diagnostics, and upstream changes. New feature work is iOS-focused; upstream Android updates are retained,
+but feature parity for the fork additions is not claimed. Generated artifacts, device captures, deployment records, and signing overrides stay local.
 
 ## Sync and diagnostics
 
@@ -21,6 +20,18 @@ bounded files. Events cover lifecycle and connection changes, transfer summaries
 latency, Health pass outcomes, and analytics costs. The recorder adds no wake timer or network
 transfer. Extra signal-strength reads stop when the capture expires. Compile out the flag for a
 normal build. Device journals and their contents are not public test fixtures.
+
+## Metric context and activity guidance
+
+Metric details include research references, source limitations and trend-only labels where absolute
+values are not supported. Comparisons use matched sources and adequate completed-day coverage.
+Activity guidance covers steps, reported exercise minutes, logged strength days and sleep consistency.
+Optional on-device Apple Intelligence selects from approved explanations on supported iOS versions.
+See `METRIC_CONTEXT_PLAN.md`, `METRIC_EVIDENCE.md` and `METRIC_CONTEXT_TESTING.md` for scope and checks.
+
+Apple background policies retain active recording, adapt automatic work in Low Power Mode and
+reconcile Health writes over a rolling fourteen-day window. Upstream's disk-backed strap-log archive
+replaces the older batched UserDefaults tail; lifecycle flushing of that removed tail is unnecessary.
 
 ## Upstream attribution
 

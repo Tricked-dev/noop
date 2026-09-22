@@ -92,8 +92,12 @@ enum RescoreBackgroundPolicy {
                        isRealUpdate: Bool = true,
                        rescoreAlreadyOwed: Bool,
                        passInProgress: Bool = false,
-                       secondsSinceLastAttempt: Double? = nil) -> Decision {
+                       secondsSinceLastAttempt: Double? = nil,
+                       lowPowerMode: Bool = false) -> Decision {
         guard isBackground else { return .run }
+        if lowPowerMode {
+            return .deferToBackgroundTask(reason: "iPhone Low Power Mode postpones background scoring")
+        }
 
         guard isRealUpdate else {
             return .deferToBackgroundTask(

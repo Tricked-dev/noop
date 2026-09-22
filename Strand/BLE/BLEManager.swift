@@ -730,6 +730,7 @@ public final class BLEManager: NSObject, ObservableObject {
     static let keepAliveIntervalSeconds = 30
     private var keepAliveTick = 0
     private var keepAliveLivenessWindow = KeepAliveLivenessWindow()
+    /// Foreground compatibility baseline; background runtime polling uses BackgroundWorkPolicy.
     /// #battery: minimum gap between 5/MG 0x2A19 battery reads. `enableLiveNotifications` fires from the
     /// 30 s keep-alive tick AND once each from the CLIENT_HELLO-ack / post-bond callers, so without a
     /// throttle a 5/MG was READ every ~30 s — 2 880 GATT reads/day, 2× the Android twin's ~60 s cadence
@@ -740,6 +741,23 @@ public final class BLEManager: NSObject, ObservableObject {
     /// connect reads immediately. Parity fix — Android was already at ~60 s, this brings iOS to match.
     static let whoop5BatteryReadMinIntervalSeconds: TimeInterval = 60
     private var lastBatteryReadAt: Date?
+    private var lastWhoop4BatteryPollAt: Date?
+    private var batteryPollingBackground: Bool {
+        #if os(iOS)
+        return UIApplication.shared.applicationState != .active
+        #else
+        return false
+        #endif
+    }
+    private func batteryPollIsDue(last: Date?) -> Bool {
+        BackgroundWorkPolicy.batteryDue(elapsed: last.map { Date().timeIntervalSince($0) },
+                                       background: BackgroundWorkPolicy.relaxedBatteryPolling(
+                                        background: batteryPollingBackground,
+                                        whoop4: selectedModel.deviceFamily == .whoop4,
+                                        silentFor: Date().timeIntervalSince(lastDataAt)),
+                                       charging: state.charging == true)
+    }
+
     /// If a persisted/missing strap-family preference points at the wrong service, a service-filtered
     /// BLE scan can run forever even though the strap is nearby (the common "won't reconnect after an
     /// update" report). Rotate between WHOOP families after a short miss and persist whichever family
@@ -795,15 +813,13 @@ public final class BLEManager: NSObject, ObservableObject {
     /// family this diagnostic is for) it never increments. A wall-clock throttle reaches both families
     /// and both bond states, and lands on the same ~60 s cadence as the Android twin.
     private var lastRssiReadAt: Date?
-    /// ~60 s between link RSSI reads, matching the Android odd-tick cadence.
-    private static let rssiReadIntervalSeconds: TimeInterval = 60
 
     /// Uptime clock for the epitaph. Monotonic, so a wall-clock change mid-link cannot make it negative.
     private var linkUpSince: DispatchTime?
     /// Last time ANY notification arrived — drives the liveness watchdog.
     private var lastDataAt = Date()
-    /// True while a Live/Health screen is on-screen and wants the realtime stream. One of the two
-    /// inputs to `wantsRealtime`. Driven by `startRealtime()` / `stopRealtime()`.
+    /// AppModel combines visible-screen demand with active recording sessions. Hidden screens do
+    /// not contribute, but recording sessions do. Separate from continuous HRV capture below.
     private var screenWantsRealtime = false
     /// True while the "Continuous HRV capture" preference wants the realtime stream held open even with
     /// no Live screen visible, so the strap banks dense beat-to-beat R-R 24/7 (better overnight
@@ -2773,7 +2789,9 @@ public final class BLEManager: NSObject, ObservableObject {
         backfillTimeout = nil
         backfillTimeoutGeneration &+= 1
         backfillFrameQueue.removeAll()
-        log("Backfill: session ended — reason=\(reason)")
+        log("Backfill: session ended — reason=\(reason)"
+            + BLEManager.sessionEndedOutcome(reason: reason,
+                                             bankedRows: (backfiller?.sessionRowsPersisted ?? 0) > 0))
 
         #if NOOP_SYNC_DIAGNOSTICS
         if let started = syncDiagnosticStarted {
@@ -3263,6 +3281,40 @@ public final class BLEManager: NSObject, ObservableObject {
         chunks > 0 || rows > 0 || deepPackets > 0
     }
 
+    /// #2384: the `HR notify:` line, so a strap log says whether the standard 0x2A37 profile is
+    /// delivering anything at all, and whether what it delivered was usable.
+    ///
+    /// Extracted from the emitter below it, unchanged, because Android had no twin of this line and is
+    /// getting one. A reporter's 5/MG banked `live hr=0 rr=0` on ten consecutive links while the
+    /// historical offload ran perfectly, and an Android log could not distinguish the strap never
+    /// notifying on 0x2A37 from it notifying with a value the 30...220 gate below drops without a word.
+    /// Those call for opposite fixes. Pinning the wording here means the answer reads the same whichever
+    /// platform the log came from.
+    ///
+    /// The range is the value gate's own: `ignored` means the reading reached neither the UI nor the
+    /// store. Twin of the Kotlin `WhoopBleClient.standardHrNotifyLine`.
+    nonisolated static func standardHrNotifyLine(hr: Int, rrCount: Int) -> String {
+        let plausibility = (30...220).contains(hr) ? "" : " ignored"
+        return "HR notify: \(hr) bpm\(plausibility), rr=\(rrCount)"
+    }
+
+    /// #2387: the outcome token on a `session ended` line, so a timeout says whether it achieved anything.
+    ///
+    /// A WHOOP 4.0 routinely ends a PRODUCTIVE offload on the idle timeout, because that firmware finishes
+    /// without emitting HISTORY_COMPLETE. The line said `reason=timeout` either way, and the rows landed on
+    /// the NEXT line, so the alarming half read first and the outcome second. A reporter read six of these
+    /// as six interrupted syncs; so did I, reviewing their log, after reading the code that says otherwise.
+    /// Their session had banked 56,879, 183,266, 37,645 and 40,386 rows under four of those timeouts.
+    ///
+    /// Rows, not frames: a stalled session still receives frames, and rows is what the summary line beside
+    /// this one reports, so the two cannot disagree. Same test the notify path already applies
+    /// (`shouldNotifySuccessfulOffload` on Kotlin). Empty for any other reason, which keeps
+    /// HISTORY_COMPLETE and the disconnect paths byte-identical to before.
+    nonisolated static func sessionEndedOutcome(reason: String, bankedRows: Bool) -> String {
+        guard reason == "timeout" else { return "" }
+        return bankedRows ? " outcome=drained" : " outcome=nothing-banked"
+    }
+
     /// #1466: the banner (if any) for an offload that ended on the idle TIMEOUT rather than
     /// HISTORY_COMPLETE, for a non-5/MG strap. Pure so the decision is unit-testable — the surrounding
     /// method is a long side-effecting BLE callback.
@@ -3404,6 +3456,16 @@ public final class BLEManager: NSObject, ObservableObject {
         lowRefreshMode = enabled
     }
 
+    private var hostBackgroundLowPower = false
+
+    /// iPhone Low Power Mode delays automatic offloads only while backgrounded. Re-arm the
+    /// deadline on transitions without interrupting an offload or changing acquisition.
+    func setHostBackgroundLowPower(_ enabled: Bool) {
+        guard hostBackgroundLowPower != enabled else { return }
+        hostBackgroundLowPower = enabled
+        if backfillTimer != nil { startBackfillTimer() }
+    }
+
     /// #477 (Settings): pause the background continuous-HRV stream when the strap is low. Keyed on the
     /// STRAP's battery like the offload lever — pass the same threshold; engages at/below it (0 = off).
     /// Reconciles now.
@@ -3434,7 +3496,9 @@ public final class BLEManager: NSObject, ObservableObject {
     private func nextBackfillInterval() -> Int {
         // Low refresh moves the BASE the other levers stretch from; each one composes with `max`, so the
         // cadence can only get quieter, never faster than the user asked for.
-        let base = BLEManager.baseBackfillInterval(lowRefresh: lowRefreshMode)
+        let base = BackgroundWorkPolicy.offloadInterval(
+            base: BLEManager.baseBackfillInterval(lowRefresh: lowRefreshMode),
+            backgroundLowPower: hostBackgroundLowPower)
         // #battery: known-empty-history 5/MG → stretch to the 45-min floor before any battery lever.
         if selectedModel.deviceFamily == .whoop5 {
             let stretched = BLEManager.whoop5EmptyHistoryBackfillInterval(
@@ -4788,7 +4852,8 @@ public final class BLEManager: NSObject, ObservableObject {
             if let p = peripheral { central.cancelPeripheralConnection(p) }
             return
         }
-        // #2332: re-read link RSSI on a ~60 s throttle, for BOTH families and BOTH bond states. It sits
+        // #2332: read RSSI for BOTH families and BOTH bond states. Healthy background links use
+        // a five-minute cadence; foreground, weak/quiet links and Test Centre keep one minute. It sits
         // here, above the paragraph below, because that paragraph's subject is puffin work needing the
         // bond and this is the opposite: `readRSSI()` needs no bond and no characteristic, so the
         // unbonded #1635 strap gets it too.
@@ -4810,9 +4875,14 @@ public final class BLEManager: NSObject, ObservableObject {
         #else
         let captureSignal = true
         #endif
+        let rssiNow = Date()
         if captureSignal, let p = peripheral,
-           Date().timeIntervalSince(lastRssiReadAt ?? .distantPast) >= BLEManager.rssiReadIntervalSeconds {
-            lastRssiReadAt = Date()
+           BackgroundWorkPolicy.rssiDue(elapsed: lastRssiReadAt.map { rssiNow.timeIntervalSince($0) },
+                                        background: batteryPollingBackground,
+                                        silentFor: rssiNow.timeIntervalSince(lastDataAt),
+                                        lastRSSI: lastRssiDbm,
+                                        detailedDiagnostics: TestCentre.active(.connection)) {
+            lastRssiReadAt = rssiNow
             p.readRSSI()
         }
 
@@ -4829,8 +4899,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // doubling the rate on a bonded strap (this path only runs when `!didBond`).
         if !didBond, selectedModel.deviceFamily == .whoop5,
            let p = peripheral, let b = batteryCharacteristic, b.properties.contains(.read),
-           BLEManager.shouldPollWhoop5Battery(lastReadAt: lastBatteryReadAt,
-                                              charging: state.charging == true) {
+           batteryPollIsDue(last: lastBatteryReadAt) {
             p.readValue(for: b)
             lastBatteryReadAt = Date()
             log("Reading 5/MG battery (unbonded keep-alive) (#1953)")
@@ -4901,7 +4970,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // user-initiated probe for it; there is no iOS twin of that, so asking a 5/MG whether it answers
         // 151 at all is an Android-side question today.
         if selectedModel.deviceFamily != .whoop5,
-           BLEManager.batteryPollDue(tick: keepAliveTick, charging: state.charging == true) {
+           batteryPollIsDue(last: lastWhoop4BatteryPollAt) {
+            lastWhoop4BatteryPollAt = Date()
             // Match the already-working bond/manual read: a four-byte command body.
             send(.getBatteryLevel, payload: [0x00])
         }
@@ -4967,8 +5037,13 @@ public final class BLEManager: NSObject, ObservableObject {
                                        // what stops the 15-min poll spinning on a caught-up strap.
                                        emptyStreak: max(emptySyncTracker.consecutiveEmptySyncs, consecutiveEmptyOffloads),
                                        clockUntrusted: clockUntrusted,
+                                       backgroundLowPower: hostBackgroundLowPower,
                                        userPausedUntil: userPausedUntil) else {
-            log("Backfill: \(trigger) skipped (rate-limited; last \(last.map { Int(now - $0) } ?? -1)s ago)")
+            if !BackfillPolicy.userPauseAllows(trigger: trigger, now: now, pausedUntil: userPausedUntil) {
+                log("Backfill: \(trigger) skipped — automatic sync is paused after the user stopped it.")
+            } else {
+                log("Backfill: \(trigger) skipped (rate-limited; last \(last.map { Int(now - $0) } ?? -1)s ago)")
+            }
             return
         }
         if beginBackfill() {
@@ -5224,8 +5299,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // revert the true reading, #77). The 600 s same-% throttle in LiveState guards the estimator.
         if let b = batteryCharacteristic, b.properties.contains(.read),
            selectedModel.deviceFamily != .whoop4,
-           BLEManager.shouldPollWhoop5Battery(lastReadAt: lastBatteryReadAt,
-                                              charging: state.charging == true) {
+           batteryPollIsDue(last: lastBatteryReadAt) {
             p.readValue(for: b)
             lastBatteryReadAt = Date()
         }
@@ -5722,8 +5796,7 @@ public final class BLEManager: NSObject, ObservableObject {
         #endif
         if lastStandardHRLogAt.map({ now.timeIntervalSince($0) >= 30 }) ?? true {
             lastStandardHRLogAt = now
-            let plausibility = (30...220).contains(m.hr) ? "" : " ignored"
-            log("HR notify: \(m.hr) bpm\(plausibility), rr=\(m.rr.count)")
+            log(BLEManager.standardHrNotifyLine(hr: m.hr, rrCount: m.rr.count))
         }
         // R-R: the standard profile is the RELIABLE source (the custom REALTIME_DATA stream
         // usually reports rr_count=0), so always surface intervals when present. setRRIntervals also
@@ -6366,7 +6439,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // #689/#815: the backlog sample is "at connect" by definition, so it must not survive the link it
         // was taken on — a stale figure under a fresh connection would be a plain lie.
         state.pagesBehindAtConnect = nil
-        lastBatteryReadAt = nil   // #battery: next connect's first enableLiveNotifications re-seeds the 5/MG battery reading
+        lastBatteryReadAt = nil
+        lastWhoop4BatteryPollAt = nil
         // #612: the display flag only, not the underlying emptySyncTracker streak (that counter
         // deliberately survives a reconnect — unchanged, existing behaviour). A fresh link re-derives
         // this from its own next HISTORY_COMPLETE.

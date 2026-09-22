@@ -184,6 +184,7 @@ enum RescoreBackgroundScheduler {
     static func run(isBackground: Bool? = nil,
                     owesOnDefer: Bool = true,
                     passInProgress: Bool = false,
+                    lowPowerMode: Bool? = nil,
                     log: @escaping (String) -> Void,
                     work: () async -> Void) async {
         let decision = RescoreBackgroundPolicy.decide(
@@ -191,7 +192,8 @@ enum RescoreBackgroundScheduler {
             isRealUpdate: owesOnDefer,
             rescoreAlreadyOwed: isRescoreOwed,
             passInProgress: passInProgress,
-            secondsSinceLastAttempt: secondsSinceLastAttempt)
+            secondsSinceLastAttempt: secondsSinceLastAttempt,
+            lowPowerMode: lowPowerMode ?? hostLowPowerMode)
 
         switch decision {
         case .deferToBackgroundTask(let reason):
@@ -283,6 +285,14 @@ enum RescoreBackgroundScheduler {
         #endif
     }
 
+    private static var hostLowPowerMode: Bool {
+        #if os(iOS)
+        return ProcessInfo.processInfo.isLowPowerModeEnabled
+        #else
+        return false
+        #endif
+    }
+
     // MARK: - iOS background-processing plumbing
 
     #if os(iOS)
@@ -323,11 +333,10 @@ enum RescoreBackgroundScheduler {
     static func schedule() {
         BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: taskIdentifier)
         let request = BGProcessingTaskRequest(identifier: taskIdentifier)
-        // Neither is required. Network is irrelevant to an offline app, and demanding external power
-        // would strand the work for anyone who does not charge overnight — the exact population most
-        // likely to be wearing the strap continuously.
+        // Ordinary scoring can run on battery. When the phone requests Low Power Mode, allow
+        // this deferred work on external power; a power-mode change replaces this request.
         request.requiresNetworkConnectivity = false
-        request.requiresExternalPower = false
+        request.requiresExternalPower = hostLowPowerMode
         try? BGTaskScheduler.shared.submit(request)
     }
 

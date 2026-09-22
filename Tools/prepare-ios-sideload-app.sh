@@ -40,6 +40,7 @@ WIDGET_ENTITLEMENTS="$ENTITLEMENTS_DIR/widget.plist"
 
 plutil -create xml1 "$APP_ENTITLEMENTS"
 plutil -insert 'com\.apple\.developer\.healthkit' -bool YES "$APP_ENTITLEMENTS"
+plutil -insert 'com\.apple\.developer\.healthkit\.background-delivery' -bool YES "$APP_ENTITLEMENTS"
 plutil -insert 'com\.apple\.developer\.healthkit\.access' -array "$APP_ENTITLEMENTS"
 plutil -insert 'com\.apple\.security\.application-groups' -array "$APP_ENTITLEMENTS"
 plutil -insert 'com\.apple\.security\.application-groups.0' -string "$APP_GROUP" "$APP_ENTITLEMENTS"
@@ -58,6 +59,13 @@ SIGNED_APP_ENTITLEMENTS="$ENTITLEMENTS_DIR/signed-app.plist"
 SIGNED_WIDGET_ENTITLEMENTS="$ENTITLEMENTS_DIR/signed-widget.plist"
 codesign -d --entitlements :- "$APP" 2>/dev/null > "$SIGNED_APP_ENTITLEMENTS"
 codesign -d --entitlements :- "$WIDGET" 2>/dev/null > "$SIGNED_WIDGET_ENTITLEMENTS"
+
+for HEALTH_CAPABILITY in com.apple.developer.healthkit com.apple.developer.healthkit.background-delivery; do
+  [ "$(/usr/libexec/PlistBuddy -c "Print :$HEALTH_CAPABILITY" "$SIGNED_APP_ENTITLEMENTS")" = true ] || {
+    echo "signed app lost HealthKit entitlement: $HEALTH_CAPABILITY" >&2
+    exit 1
+  }
+done
 
 SIGNED_APP_GROUP=$(/usr/libexec/PlistBuddy \
   -c 'Print :com.apple.security.application-groups:0' "$SIGNED_APP_ENTITLEMENTS")

@@ -271,7 +271,7 @@ final class Repository: ObservableObject {
     /// the final fallback. Archived devices intentionally remain: archive means "stop connecting, keep
     /// data", and historical timelines must not orphan their retained samples. The active id remains first
     /// even for a non-WHOOP provider, preserving the pre-multi-strap cross-provider path.
-    private func rawPhysiologyReadIds(store: WhoopStore) -> [String] {
+    func rawPhysiologyReadIds(store: WhoopStore) -> [String] {
         let paired = (try? DeviceRegistryStore(dbQueue: store.registryWriter).all()) ?? []
         let registeredWhoops = paired.filter {
             $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame

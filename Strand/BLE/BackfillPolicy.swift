@@ -95,6 +95,7 @@ enum BackfillPolicy {
     static func shouldRun(trigger: BackfillTrigger, now: TimeInterval,
                           lastBackfillAt: TimeInterval?, emptyStreak: Int = 0,
                           clockUntrusted: Bool = false,
+                          backgroundLowPower: Bool = false,
                           userPausedUntil: TimeInterval? = nil) -> Bool {
         guard userPauseAllows(trigger: trigger, now: now, pausedUntil: userPausedUntil) else { return false }
         guard let last = lastBackfillAt else { return true }
@@ -110,8 +111,10 @@ enum BackfillPolicy {
         // #160: a future-dated-clock strap's recurring automatic offloads are near-useless (#1012 won't
         // trust the range) but each holds the link ~60s and starves the WHOOP4 realtime-HR re-arm, so skip
         // them entirely — not just stretch the floor. The .connect pass above still re-checks the clock.
-        case .strap:                 return !clockUntrusted && elapsed >= eventFloorSeconds * backoff
-        case .periodic:              return !clockUntrusted && elapsed >= periodicFloorSeconds * backoff
+        case .strap:
+            return !clockUntrusted && elapsed >= max(eventFloorSeconds * backoff, backgroundLowPower ? 3_600 : 0)
+        case .periodic:
+            return !clockUntrusted && elapsed >= max(periodicFloorSeconds * backoff, backgroundLowPower ? 3_600 : 0)
         }
     }
 }

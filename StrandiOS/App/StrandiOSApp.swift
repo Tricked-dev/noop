@@ -99,6 +99,9 @@ struct StrandiOSApp: App {
             },
             setStrapHandler: { [weak model] handler in
                 model?.strapDoubleTapOverride = handler
+            },
+            setRealtimeDemand: { [weak model] active in
+                model?.setRealtimeSession(.lifting, active: active)
             }))
         // #1538: a strap offload completes while the app is BACKGROUNDED — it stays alive as a
         // bluetooth-central to receive it — and the re-score it triggers took nearly eight minutes on the
@@ -118,7 +121,7 @@ struct StrandiOSApp: App {
             noopDeviceId: model.deviceId
         )
         _health = StateObject(wrappedValue: bridge)
-        // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
+        // Register pending-export retries plus a daily repair pass for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still
         // use the immediate hook below. BGTaskScheduler chooses the actual wake time.
         HealthWritebackBackgroundScheduler.register { [weak bridge] in
@@ -294,8 +297,8 @@ struct StrandiOSApp: App {
                     guard scenePhase == .active else { return }
                     Task { await WidgetSnapshot.publish(from: model) }
                 }
-                // Apple Health is explicitly opt-in. Once any write type is authorized, keep one
-                // best-effort BGAppRefresh request armed; revoking all write access cancels it.
+                // Apple Health is explicitly opt-in. Authorization enables pending retries and the
+                // daily reconciliation fallback; revoking all write access cancels the request.
                 .onChange(of: health.auth) { _, auth in
                     HealthWritebackBackgroundScheduler.updateSchedule(isAuthorized: auth == .authorized)
                 }
@@ -386,6 +389,7 @@ struct StrandiOSApp: App {
             model.ble.recordOvernightStatus(reason: "scene-" + String(describing: phase))
             #endif
             if phase == .active {
+                model.setAppBackgrounded(false)
                 model.drainPendingIntents(router: router)
                 // End a "Connecting…" sync island whose sync never came, rather than leave it greyed.
                 SyncLiveActivityController.shared.reconcile(live: model.live)
@@ -425,6 +429,7 @@ struct StrandiOSApp: App {
                     await watch.pushLatest(from: model)
                 }
             } else if phase == .background {
+                model.setAppBackgrounded(true)
                 // Re-submit on every transition because iOS may discard an old best-effort request.
                 HealthWritebackBackgroundScheduler.updateSchedule(
                     isAuthorized: health.auth == .authorized)

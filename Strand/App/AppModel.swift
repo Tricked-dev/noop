@@ -7,6 +7,7 @@ import StrandImport
 import OuraProtocol
 #if os(iOS)
 import UserNotifications
+import UIKit
 #endif
 
 /// Data source currently running an import from the Data Sources screen.
@@ -85,7 +86,13 @@ final class AppModel: ObservableObject {
     /// since; on End the window is scored via `StrainScorer` and saved as a `WorkoutRow` (source
     /// "manual"), which then shows in the Workouts view. The day's strain already counts this HR (it's
     /// the same live stream the store persists), so this is a per-session annotation, not a double-count.
-    @Published var activeWorkout: ActiveWorkout?
+    @Published var activeWorkout: ActiveWorkout? {
+        didSet {
+            if (oldValue == nil) != (activeWorkout == nil) {
+                setRealtimeSession(.workout, active: activeWorkout != nil)
+            }
+        }
+    }
     /// The just-ended workout, for a brief inline confirmation on Live (cleared on the next start).
     @Published var lastWorkout: WorkoutRow?
 
@@ -397,6 +404,13 @@ final class AppModel: ObservableObject {
         rehydrateActiveWorkout()
 
         AppModel.shared = self   // publish for App Intents (Shortcuts) , see the static above (#42)
+        #if os(iOS)
+        setAppBackgrounded(UIApplication.shared.applicationState != .active)
+        NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshHostPowerPolicy() }
+            .store(in: &hrCancellables)
+        #endif
 
         // Seed the BLE client with the persisted "Continuous HRV capture" intent so `wantsRealtime`
         // reflects it from launch , the reconciler then arms the dense stream as soon as the strap bonds
@@ -1348,44 +1362,59 @@ final class AppModel: ObservableObject {
             .store(in: &ouraAdoptCancellables)
     }
 
-    /// How many on-screen surfaces currently want the realtime HR stream (the Live tab and the
-    /// in-exercise LiveWorkoutView, which can be open at the same time , the workout sheet sits over
-    /// Live, or is reached straight from the Workouts tab without Live ever appearing). The stream
-    /// stays armed while ANY of them is visible, so a second surface arming it never disarms it out
-    /// from under the first (#681 , a WHOOP 5/MG manual workout started without first opening Live got
-    /// no live HR, so every sample was dropped and the session was silently discarded). Ref-counted to
-    /// match Android's `realtimeWanters` (AppViewModel.requestRealtimeHr/releaseRealtimeHr).
-    private var realtimeWanters = 0
+    private var realtimeDemand = RealtimeDemand()
+    private var appliedRealtimeDemand = false
 
-    /// A surface that shows live HR appeared. Arms the realtime stream on the 0→1 edge , and ONLY on
-    /// that edge blanks the stale smoothing window (#46) so a resume shows "," until a fresh sample
-    /// lands, never re-clearing an already-live window when a second concurrent HR surface opens. The
-    /// keep-alive re-arm goes through `ble.startRealtime()` directly, NOT here, so steady-state is
-    /// untouched. Each surface must balance this with exactly one `stopRealtimeHR()` on disappear.
+    /// Navigation owns display requests; backgrounding masks them without destroying their count.
     func startRealtimeHR() {
-        if realtimeWanters == 0 {
+        realtimeDemand.addScreen()
+        reconcileRealtimeDemand()
+    }
+
+    func stopRealtimeHR() {
+        realtimeDemand.removeScreen()
+        reconcileRealtimeDemand()
+    }
+
+    /// A recording session owns its stream even with every screen hidden.
+    func setRealtimeSession(_ session: RealtimeDemand.Session, active: Bool) {
+        realtimeDemand.setSession(session, active: active)
+        reconcileRealtimeDemand()
+    }
+
+    func setAppBackgrounded(_ background: Bool) {
+        realtimeDemand.isBackground = background
+        reconcileRealtimeDemand()
+        refreshHostPowerPolicy()
+    }
+
+    private func reconcileRealtimeDemand() {
+        let wanted = realtimeDemand.wantsStream
+        guard wanted != appliedRealtimeDemand else { return }
+        appliedRealtimeDemand = wanted
+        if wanted {
             resetSmoothing()
             ble.startRealtime()
+        } else {
+            ble.stopRealtime()
         }
-        realtimeWanters += 1
-    }
-    /// A live-HR surface went away. Stops the realtime stream only when the last one leaves (1→0 edge);
-    /// the lightweight 0x2A37 HR keeps recording regardless. Clamped at 0 so an unbalanced extra stop
-    /// can't drive the count negative and wedge the stream off.
-    func stopRealtimeHR() {
-        realtimeWanters = max(0, realtimeWanters - 1)
-        if realtimeWanters == 0 { ble.stopRealtime() }
     }
 
-    /// Re-issue the BLE realtime arm WITHOUT touching the ref-count , used when a fresh
-    /// connection/bond lands while a surface is already showing live HR (Apple's `ble.startRealtime()`
-    /// must be re-sent on a new connection). A no-op when nothing wants the stream, so a stray
-    /// connection event can't arm it behind a closed Live tab. Mirrors that Android re-arms via its
-    /// own keep-alive rather than re-calling `requestRealtimeHr` on reconnect.
+    /// Reconnects consult the same demand as lifecycle transitions, without adding another owner.
     func rearmRealtimeIfWanted() {
-        guard realtimeWanters > 0 else { return }
+        guard realtimeDemand.wantsStream else { return }
         ble.startRealtime()
     }
+
+    private func refreshHostPowerPolicy() {
+        #if os(iOS)
+        ble.setHostBackgroundLowPower(realtimeDemand.isBackground && ProcessInfo.processInfo.isLowPowerModeEnabled)
+        // Replace any charging-only request when Low Power Mode ends. Foreground resume also drains
+        // the existing debt through its normal path.
+        if RescoreBackgroundScheduler.isRescoreOwed { RescoreBackgroundScheduler.schedule() }
+        #endif
+    }
+
     /// Ask the strap for a fresh battery reading.
     func getBattery() { ble.refreshBattery() }
 

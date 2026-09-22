@@ -65,6 +65,9 @@ private struct HealthSectionsStack: View {
             // so the ~1Hz HR stream re-renders only this subtree — the static
             // vitals grid below does not re-render on each HR tick.
             HeartRateSection()
+            #if os(iOS)
+            MetricContextSection(anchorDay: Repository.localDayKey(Date()))
+            #endif
             // Fitness Age (weekly, computed by IntelligenceEngine and read back from the
             // "fitness_age" metricSeries). Its own view depending only on `repo`/`profile`,
             // so the live HR stream never re-renders it.
@@ -78,7 +81,9 @@ private struct HealthSectionsStack: View {
             RecoveryContributorsSection()
             // The static vitals grid is its own view depending only on `repo`,
             // so it is unaffected by live HR ticks.
+            #if !os(iOS)
             VitalsSection()
+            #endif
             // v5 skin-temperature suite: the illness "heads-up", body clock, and (opt-in) cycle
             // awareness, each driven by a pure StrandAnalytics engine result the analytics pass
             // computed and AppModel publishes. Its own view depending on `model` + `repo`.

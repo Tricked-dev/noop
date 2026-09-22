@@ -265,13 +265,14 @@ struct LiquidTodayView: View {
             }
         )
     }
-    /// Horizontal swipe between days (left = older, right = newer), clamped to [today, earliest].
+    /// Horizontal swipe between days (right = older, left = newer — `TodayView.daySwipeDelta`, #2378),
+    /// clamped to [today, earliest].
     private var daySwipeGesture: some Gesture {
         DragGesture(minimumDistance: 24)
             .onEnded { value in
                 let dx = value.translation.width, dy = value.translation.height
                 guard abs(dx) > abs(dy) * 1.5, abs(dx) > 50 else { return }
-                let delta = dx < 0 ? 1 : -1
+                let delta = TodayView.daySwipeDelta(dx: dx)
                 let next = Self.clampedDayOffset(current: selectedDayOffset, delta: delta,
                                                  maxOffset: earliestDayOffset)
                 guard next != selectedDayOffset else { return }
@@ -347,7 +348,11 @@ struct LiquidTodayView: View {
                     // nothing and keeps its slot in the saved order.
                     ForEach(sectionOrder) { section in
                         switch section {
-                        case .hero: heroCard
+                        case .hero:
+                            heroCard
+                            #if os(iOS)
+                            MetricContextSection(anchorDay: selectedDayKey)
+                            #endif
                         case .liveSession: if liveSessionsBeta { liveSessionStartRow }
                         case .synthesis: synthesisSection
                         case .keyMetrics: keyMetricsSection

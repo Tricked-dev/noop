@@ -1,0 +1,3 @@
+# Sideload builds use the canonical project settings and ignored local signing overrides.
+include:
+  - project.yml

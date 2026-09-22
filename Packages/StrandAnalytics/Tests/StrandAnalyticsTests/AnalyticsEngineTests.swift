@@ -92,6 +92,21 @@ final class AnalyticsEngineTests: XCTestCase {
         return (start, end, hr, rr, grav)
     }
 
+    func testColdCacheRoundTripPreservesEveryDayResultField() throws {
+        let day = "2021-06-17"
+        let n = night(endDay: day, hours: 7)
+        let hrv = Baselines.foldHistory(Array(repeating: 10.0, count: 14), cfg: Baselines.hrvCfg)
+        let rhr = Baselines.foldHistory(Array(repeating: 50.0, count: 14), cfg: Baselines.restingHRCfg)
+        let result = AnalyticsEngine.analyzeDay(day: day, hr: n.hr, rr: n.rr, gravity: n.gravity,
+            profile: UserProfile(age: 30), baselines: .init(hrv: hrv, restingHR: rhr))
+        let encoder = PropertyListEncoder(); encoder.outputFormat = .binary
+        let data = try encoder.encode(result)
+        let restored = try PropertyListDecoder().decode(AnalyticsEngine.DayResult.self, from: data)
+        XCTAssertEqual(restored, result)
+        XCTAssertFalse(restored.sleepSessions.isEmpty)
+        XCTAssertNotNil(restored.recovery)
+    }
+
     func testAnalyzeDayProducesSleepMetric() {
         let day = "2021-06-15"
         let n = night(endDay: day, hours: 7)

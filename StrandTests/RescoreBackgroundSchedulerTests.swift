@@ -48,6 +48,27 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
         else { UserDefaults.standard.removeObject(forKey: key) }
     }
 
+    func testLowPowerBackgroundDeferralPreservesDebtButForegroundRuns() async {
+        var ran = false
+        await RescoreBackgroundScheduler.run(isBackground: true, lowPowerMode: true, log: { _ in }) {
+            ran = true
+        }
+        XCTAssertFalse(ran)
+        XCTAssertTrue(RescoreBackgroundScheduler.isRescoreOwed)
+        await RescoreBackgroundScheduler.run(isBackground: false, lowPowerMode: true, log: { _ in }) {
+            ran = true
+        }
+        XCTAssertTrue(ran)
+    }
+
+    func testLowPowerBackstopDoesNotInventDebt() async {
+        await RescoreBackgroundScheduler.run(isBackground: true, owesOnDefer: false,
+                                             lowPowerMode: true, log: { _ in }) {
+            XCTFail("background backstop must not run")
+        }
+        XCTAssertFalse(RescoreBackgroundScheduler.isRescoreOwed)
+    }
+
     // MARK: - The durable mark
 
     /// A pass that starts owes a re-score until it finishes. The mark is what a LATER process reads to
