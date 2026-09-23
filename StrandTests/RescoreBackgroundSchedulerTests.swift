@@ -1,4 +1,5 @@
 import XCTest
+import WhoopStore
 @testable import Strand
 
 /// #1538: the bookkeeping that makes a deferred re-score actually happen.
@@ -11,6 +12,65 @@ import XCTest
 @MainActor
 final class RescoreBackgroundSchedulerTests: XCTestCase {
 
+    func testCancelledAnalysisKeepsWatermarkAndDebtThenCanRunAgain() async throws {
+        let defaults = UserDefaults.standard
+        let watermark = defaults.object(forKey: "noop.analyzeWatermark")
+        let effortFlag = defaults.object(forKey: IntelligenceEngine.effortRescoreFlagKey)
+        defaults.removeObject(forKey: IntelligenceEngine.effortRescoreFlagKey)
+        defer { restore(effortFlag, IntelligenceEngine.effortRescoreFlagKey) }
+        defer { restore(watermark, "noop.analyzeWatermark") }
+        defaults.set("unfinished-inputs", forKey: "noop.analyzeWatermark")
+        let store = try await WhoopStore.inMemory()
+        let repo = Repository(deviceId: "cancellation-test")
+        repo.setStoreForTesting(store)
+        let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: "cancellation-test")
+        var lines: [String] = []
+        engine.diagnosticSink = { line, _ in lines.append(line) }
+        let cancellation = RescoreCancellation()
+        cancellation.cancel()
+        await RescoreCancellation.$current.withValue(cancellation) {
+            await engine.runEffortRescoreIfNeeded(historyDays: 1)
+        }
+        XCTAssertFalse(engine.computing)
+        XCTAssertFalse(defaults.bool(forKey: IntelligenceEngine.effortRescoreFlagKey))
+        XCTAssertTrue(RescoreBackgroundScheduler.isRescoreOwed)
+        XCTAssertEqual(defaults.string(forKey: "noop.analyzeWatermark"), "unfinished-inputs")
+        XCTAssertTrue(lines.contains { $0.contains("cancelled phase=prepare") })
+        XCTAssertFalse(lines.contains { $0.contains("re-score: done") })
+        lines.removeAll()
+        await engine.runEffortRescoreIfNeeded(historyDays: 1)
+        XCTAssertFalse(engine.computing)
+        XCTAssertFalse(RescoreBackgroundScheduler.isRescoreOwed)
+        XCTAssertTrue(defaults.bool(forKey: IntelligenceEngine.effortRescoreFlagKey))
+        XCTAssertTrue(lines.contains { $0.contains("re-score: done") })
+    }
+
+    func testDeferredAndNarrowerRequestsRetainInterruptedWideWindow() {
+        _ = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true, maxDays: 90)
+        _ = RescoreBackgroundScheduler.markRescoreOwed()
+        let token = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true, maxDays: 21)
+        XCTAssertEqual(RescoreBackgroundScheduler.owedWindowDays, 90)
+        XCTAssertTrue(RescoreBackgroundScheduler.markRescoreCompleted(seconds: 1, owedToken: token))
+        XCTAssertNil(UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.owedWindowKey))
+    }
+
+    func testDetachedWorkerObservesExplicitlyCapturedCancellation() async {
+        let cancellation = RescoreCancellation()
+        await RescoreCancellation.$current.withValue(cancellation) {
+            let captured = RescoreCancellation.current!
+            let worker = Task.detached {
+                while !captured.isCancelled { await Task.yield() }
+                return true
+            }
+            cancellation.cancel()
+            let stopped = await worker.value
+            XCTAssertTrue(stopped)
+        }
+        XCTAssertNil(RescoreCancellation.current)
+        XCTAssertFalse(RescoreCancellation().isCancelled)
+    }
+
+    private var savedWindow: Any?
     private var savedOwed: Any?
     private var savedSeconds: Any?
     private var savedToken: Any?
@@ -21,6 +81,8 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
         super.setUp()
         // These live in UserDefaults.standard, shared with every other test in the target. Save and
         // restore rather than assume this suite owns them.
+        savedWindow = UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.owedWindowKey)
+        UserDefaults.standard.removeObject(forKey: RescoreBackgroundScheduler.owedWindowKey)
         savedOwed = UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.owedKey)
         savedSeconds = UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.lastPassSecondsKey)
         savedToken = UserDefaults.standard.object(forKey: RescoreBackgroundScheduler.owedTokenKey)
@@ -35,6 +97,7 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
     }
 
     override func tearDown() {
+        restore(savedWindow, RescoreBackgroundScheduler.owedWindowKey)
         restore(savedOwed, RescoreBackgroundScheduler.owedKey)
         restore(savedSeconds, RescoreBackgroundScheduler.lastPassSecondsKey)
         restore(savedToken, RescoreBackgroundScheduler.owedTokenKey)

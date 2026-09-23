@@ -196,6 +196,7 @@ final class Backfiller {
     /// stops it re-kicking forever when the cursor is frozen. nil until the first ack. NOT reset in
     /// `begin()` (it's a cross-session high-water mark, not a per-session tally).
     private(set) var lastAckedTrim: UInt32?
+    private var slowChunkLogGate = DiagnosticEmissionGate()
 
     /// Reject frames one connection may hex-dump (#1992). Three chunks worth at the per-chunk cap:
     /// enough distinct records to triangulate field offsets (v25 was mapped from 45, spread over many
@@ -583,23 +584,28 @@ final class Backfiller {
         let parsed: [ParsedFrame]
         let decoded: Streams
         let rejected: [[UInt8]]
+        let rejectionReasons: String
     }
 
     private func finishChunk(unix: UInt32, trim: UInt32, endFrame: [UInt8]) async {
         guard let endData = Backfiller.endData(from: endFrame, family: family) else { return }
-        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-        // DIAGNOSTIC BATTERY COST: monotonic stage clocks; bounded journal output bypasses UI logs.
-        var trace = OvernightDiagnostics.isActive ? DiagnosticStageTrace() : nil
+        // DIAGNOSTIC BATTERY COST: stage clocks remain enabled for rare slow-chunk evidence.
+        // No timer; at most one published slow-chunk line per minute across backfill sessions.
+        var trace = DiagnosticStageTrace()
         var traceOutcome = "not-acked"
         let repeatedCursor = lastAckedTrim == trim
         defer {
-            if var trace {
-                trace.mark("tail")
-                OvernightDiagnostics.finishSpan("history", trace: trace,
-                    outcome: "\(traceOutcome) repeatedCursor=\(repeatedCursor) trim=\(trim)")
+            trace.mark("tail")
+            let outcome = "\(traceOutcome) repeatedCursor=\(repeatedCursor) trim=\(trim)"
+            if trace.elapsed() >= 1,
+               let suppressed = slowChunkLogGate.take(now: ProcessInfo.processInfo.systemUptime, interval: 60) {
+                log?("Backfill: slow chunk elapsed=\(Int(trace.elapsed() * 1000))ms \(outcome) "
+                     + "suppressed=\(suppressed) stages=[\(trace.stages.joined(separator: ","))]; includes scheduling/suspension")
             }
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            OvernightDiagnostics.finishSpan("history", trace: trace, outcome: outcome)
+            #endif
         }
-        #endif
 
         // #773: corrupt future-RTC detection. A HISTORY_END carries the strap's own clock; a genuine offload
         // is always PAST-dated (it's banked history), so an end dated days into the future can only be a
@@ -646,11 +652,17 @@ final class Backfiller {
                 let parsed = frames.map { parseFrame($0, family: fam) }
                 let decoded = extractFn(parsed, dev, wall, oldest, newest)
                 let rejected = rejectedHistoricalRecords(frames, family: fam)
-                return DecodedChunk(parsed: parsed, decoded: decoded, rejected: rejected)
+                let rejectedSet = Set(rejected)
+                var reasons: [String: Int] = [:]
+                for (raw, frame) in zip(frames, parsed) where rejectedSet.contains(raw) {
+                    let reason = DeviceLogDiagnostics.rejectionReason(frame,
+                        unmapped: fam == .whoop5 && isUnmappedWhoop5HistoricalRecord(raw))
+                    reasons[reason, default: 0] += 1
+                }
+                let summary = reasons.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ",")
+                return DecodedChunk(parsed: parsed, decoded: decoded, rejected: rejected, rejectionReasons: summary)
             }.value
-            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-            trace?.mark("decode-and-schedule")
-            #endif
+            trace.mark("decode-and-schedule")
             let parsed = d.parsed
             // #1008: per-chunk clock basis + R-R packing. The session summary logs only the FIRST chunk's
             // correlation, which cannot show the offset moving across a long offload nor separate "the same
@@ -836,7 +848,7 @@ final class Backfiller {
             // chunk (some good rows alongside CRC-failed / unmapped records), which used to archive those
             // raw bytes with no log line at all (only the all-empty case was observable). (ryanbr, PR #123)
             if !rejected.isEmpty {
-                log?("Backfill: \(rejected.count) undecodable sensor record(s) of \(frames.count) frame(s) (trim=\(trim)) — archiving raw bytes before ack (CRC/unmapped layout).")
+                log?("Backfill: \(rejected.count) undecodable sensor record(s) of \(frames.count) frame(s) (trim=\(trim)) — archiving raw bytes before ack; reasons=[\(d.rejectionReasons)].")
                 // #91 / #30: dump a hex sample of the genuine rejects so an unmapped firmware's record
                 // layout can be mapped from a user's strap log. Dump the FULL frame (not a 64-byte
                 // prefix — v25/v26 records run ~84 B and the truncated tail is exactly where the
@@ -875,13 +887,9 @@ final class Backfiller {
             // has already absorbed part of it.
             let rrCensus = RrEmissionStats.compute(decoded.rr.map { (ts: $0.ts, rrMs: $0.rrMs) })
             do {
-                #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-                trace?.mark("prepare-insert")
-                #endif
+                trace.mark("prepare-insert")
                 counts = try await store.insert(decoded, deviceId: deviceId)
-                #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-                trace?.mark("store-insert")
-                #endif
+                trace.mark("store-insert")
                 onBankedOffload(counts)
             } catch {
                 // Diag (#601): the decoded rows couldn't be written — this is the "history stalls but live HR
@@ -933,9 +941,7 @@ final class Backfiller {
                 }
             }
 
-            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-            trace?.mark("publish-and-reject-archive")
-            #endif
+            trace.mark("publish-and-reject-archive")
 
             // RAW: only persisted when the research toggle is ON. Default OFF → decoded-only; the
             // chunk is still durably committed (decoded) so the trim is safe to advance + ack.
@@ -989,9 +995,7 @@ final class Backfiller {
             return
         }
 
-        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-        trace?.mark("raw-and-cursor-preparation")
-        #endif
+        trace.mark("raw-and-cursor-preparation")
         do { try await store.setCursor("strap_trim", Int(trim)) } catch {
             // Diag (#601): decoded (and raw, if on) are durable but the strap_trim cursor write failed. We
             // return WITHOUT acking — acking now would let the strap trim past records the cursor hasn't
@@ -1003,11 +1007,9 @@ final class Backfiller {
             return
         }
 
-        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-        trace?.mark("cursor-write")
+        trace.mark("cursor-write")
         // Prepared locally, not proof of radio delivery or strap acknowledgment.
         traceOutcome = "ack-prepared frames=\(frames.count)"
-        #endif
         ackTrim(trim, endData)
         lastAckedTrim = trim   // #364: record the advanced cursor for the auto-continue spin-detector
     }

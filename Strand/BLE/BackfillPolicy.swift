@@ -59,15 +59,23 @@ enum BackfillPolicy {
     /// from its END, since suspension can delay the timeout until long after its start-based floor.
     static func phoneAllows(trigger: BackfillTrigger, now: TimeInterval, lastAttempt: TimeInterval?,
                             lastCompleted: TimeInterval?, retryAfter: TimeInterval?) -> Bool {
-        if case .manual = trigger { return true }
-        if let retryAfter, retryAfter.isFinite, now < retryAfter { return false }
+        phoneDeferralReason(trigger: trigger, now: now, lastAttempt: lastAttempt,
+                            lastCompleted: lastCompleted, retryAfter: retryAfter) == nil
+    }
+
+    /// The scheduling decision and its explanation share one resolver.
+    static func phoneDeferralReason(trigger: BackfillTrigger, now: TimeInterval,
+                                     lastAttempt: TimeInterval?, lastCompleted: TimeInterval?,
+                                     retryAfter: TimeInterval?) -> String? {
+        if case .manual = trigger { return nil }
+        if let retryAfter, retryAfter.isFinite, now < retryAfter { return "stalled-transfer cooldown" }
         switch trigger {
         case .foreground, .strap:
             let latest = [lastAttempt, lastCompleted].compactMap { $0 }.filter { $0.isFinite && $0 > 0 }.max()
-            if let latest { return now - latest >= periodicFloorSeconds }
+            if let latest, !(now - latest >= periodicFloorSeconds) { return "recent-sync cooldown" }
         default: break
         }
-        return true
+        return nil
     }
 
     static let periodicFloorSeconds: TimeInterval = 900   // 15 min

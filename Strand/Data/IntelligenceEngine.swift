@@ -637,7 +637,9 @@ final class IntelligenceEngine: ObservableObject {
         // `computing` lock). `computing` is false here once analyzeRecent's `defer` has run; a skipped
         // call returns with `note` unset by it. Use the lock state: if a concurrent run was in progress
         // the flag stays unset so the next launch retries , cheap, and correctness over a one-time cost.
-        if !computing { UserDefaults.standard.set(true, forKey: Self.effortRescoreFlagKey) }
+        if !computing && !RescoreBackgroundScheduler.isRescoreOwed {
+            UserDefaults.standard.set(true, forKey: Self.effortRescoreFlagKey)
+        }
     }
 
     /// UserDefaults flag guarding the one-shot #547 implausible-timestamp DB heal (below). Set once the
@@ -688,7 +690,7 @@ final class IntelligenceEngine: ObservableObject {
             await analyzeRecent(maxDays: historyDays)
             // Only mark done once the rescore actually ran (wasn't skipped by a concurrent tick holding
             // the `computing` lock), so a skipped pass retries next launch , correctness over a one-time cost.
-            guard !computing else { return }
+            guard !computing, !RescoreBackgroundScheduler.isRescoreOwed else { return }
         }
         UserDefaults.standard.set(true, forKey: Self.timestampHealFlagKey)
         // Clear the re-pollution request now that this re-heal has run , a future bad-clock sync re-arms it.
@@ -700,12 +702,16 @@ final class IntelligenceEngine: ObservableObject {
     /// live night can be scored against your norm.
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
                        triggerLabel: String? = nil) async {
+        // An interrupted full-history pass must not resume as only the default recent window.
+        let maxDays = RescoreBackgroundScheduler.isRescoreOwed
+            ? max(maxDays, RescoreBackgroundScheduler.owedWindowDays) : maxDays
         // #899-A: a concurrent pass already holds the lock. A NON-forced idle tick is safe to drop (the
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
         // until the next cycle. Re-arm instead: flag it so the running pass's `defer` re-invokes once.
         guard !computing else {
             if force {
+                RescoreBackgroundScheduler.markRescoreOwed(maxDays: maxDays)
                 // Said once per running pass, not per trigger: a pass that holds the lock for hours otherwise
                 // turns every post-offload re-score into a silent no-op, and the log shows syncs but no scores.
                 if !pendingForcedRescore, let started = runningPassStart {
@@ -793,6 +799,15 @@ final class IntelligenceEngine: ObservableObject {
         // Uptime, not `Date()`: the elapsed figure below is banked as what a pass COSTS, and a wall clock
         // also counts every minute the process spent suspended mid-pass. One overnight pass suspended by a
         // sleeping phone banked 19 003 s, which then deferred every background re-score after it.
+        let cancellation = RescoreCancellation.current ?? RescoreCancellation()
+        var interrupted = false
+        func stopIfCancelled(_ phase: String) -> Bool {
+            guard cancellation.isCancelled || Task.isCancelled else { return false }
+            cancellation.cancel()
+            interrupted = true
+            diagnosticSink?("re-score: cancelled phase=\(phase); watermark unchanged, work remains owed", nil)
+            return true
+        }
         let reScoreStart = DispatchTime.now().uptimeNanoseconds
         let reScoreCPUStart = RescoreBackgroundScheduler.processCPUSeconds()
         let reScoreExpiriesAtStart = RescoreBackgroundScheduler.assertionExpiries
@@ -803,7 +818,7 @@ final class IntelligenceEngine: ObservableObject {
         defer {
             if var trace = performanceTrace {
                 trace.mark("score-and-persist")
-                OvernightDiagnostics.finishSpan("analysis", trace: trace, outcome: "returned")
+                OvernightDiagnostics.finishSpan("analysis", trace: trace, outcome: interrupted ? "cancelled" : "returned")
                 OvernightDiagnostics.performanceSnapshot(reason: "analysis-returned")
             }
         }
@@ -812,10 +827,9 @@ final class IntelligenceEngine: ObservableObject {
         runningPassStart = reScoreStart
         runningPassDays = maxDays
         // #1538: the pass is now past every gate and will do real work. Mark it started durably, so that a
-        // process killed mid-pass leaves evidence a LATER process can read — the killed process itself gets
-        // no chance to record anything. Cleared beside the watermark at the end; there is no early return
-        // between here and there, so "started and never finished" means exactly "killed", never a silent
-        // internal skip. `RescoreBackgroundPolicy` reads it to stop re-attempting a pass that cannot
+        // process killed mid-pass leaves evidence a LATER process can read. Cleared beside the
+        // watermark on completion; cooperative cancellation also retains it and logs its phase.
+        // `RescoreBackgroundPolicy` stops re-attempting a pass that cannot
         // finish in the background, which is the livelock in #1538.
         // #1681: keep the token this debt was stamped with. At the end of the pass it is what tells our
         // own debt apart from one a LATER trigger recorded while we were running - the latter must
@@ -828,7 +842,7 @@ final class IntelligenceEngine: ObservableObject {
         // state that skipped the capture and just cleared, which is exactly where #1681 lived. The
         // Kotlin post-offload gate makes the same point in its own words: "captured before the run,
         // written only on success".
-        let owedToken = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true)
+        let owedToken = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true, maxDays: maxDays)
         // #899-A re-arm: clear the lock, then if a forced rescore was dropped while this pass held it,
         // run it ONCE. The flag is cleared BEFORE the re-invoke (a single re-arm), so a forced call landing
         // DURING the re-invoke re-arms it again but a quiet one does not , this can never recurse unbounded.
@@ -837,7 +851,10 @@ final class IntelligenceEngine: ObservableObject {
         defer {
             computing = false
             runningPassStart = nil
-            if pendingForcedRescore {
+            if interrupted {
+                pendingForcedRescore = false
+                RescoreBackgroundScheduler.schedule()
+            } else if pendingForcedRescore {
                 pendingForcedRescore = false
                 // Carry THIS pass's window into the re-pass: a heal firing during a wide one-shot pass
                 // must re-score the same width, not the default 21 days (Kotlin re-passes with the same
@@ -1090,8 +1107,9 @@ final class IntelligenceEngine: ObservableObject {
         let inDayScanCache = dayScanCache
         let inDiskDays = diskDays
 
-        let (scanned, skippedDayLines, updatedDayScanCache, updatedDiskDays):
-            ([DayScan], [String], [String: (key: String, scan: DayScan)], [String: DiskDay]) = await Task.detached(priority: .utility) {
+        if stopIfCancelled("prepare") { return }
+        let scanTask = Task.detached(priority: .utility) {
+            () -> ([DayScan], [String], [String: (key: String, scan: DayScan)], [String: DiskDay]) in
             var out: [DayScan] = []
             // Days skipped below (too few HR samples) never get a DayScan, so this diagnostic can't ride
             // along on one; carried out alongside `out` and replayed through `diagnosticSink` on the main
@@ -1157,7 +1175,9 @@ final class IntelligenceEngine: ObservableObject {
             }
             var paceMark = DispatchTime.now().uptimeNanoseconds
             for offset in 0..<maxDays {
+                if cancellation.isCancelled { break }
                 if offset > 0 { await RescoreBackgroundScheduler.paceIfBackgrounded(since: &paceMark) }
+                if cancellation.isCancelled { break }
                 let dayStart = nowLocalMidnight - offset * 86_400
                 let day = AnalyticsEngine.dayString(dayStart, offsetSec: tzOffset)
                 // Read a generous window around the night that ends on `day`; the stager finds the span.
@@ -1265,6 +1285,7 @@ final class IntelligenceEngine: ObservableObject {
                 // guessed, for the same reason the day-cache duration is.
                 let tPrep0 = Date()
                 let hr = await hrWindow.rows(owner: owner, from: from, to: to)
+                if cancellation.isCancelled { break }
                 guard hr.count >= IntelligenceEngine.minHrSamples else {
                     // This day still paid for its read; count it, or the tally under-reports exactly the
                     // sparse-history installs where reads dominate most.
@@ -1489,6 +1510,7 @@ final class IntelligenceEngine: ObservableObject {
                 // the same reason `hrvDiag` is carried on the scan and replayed below. A local buffer
                 // crosses no actor.
                 var strainDiagLines: [String] = []
+                if cancellation.isCancelled { break }
                 let res = AnalyticsEngine.analyzeDay(day: day,
                                                      strainDiag: { strainDiagLines.append($0) },
                                                      hr: hr, rr: rr, resp: resp,
@@ -1850,7 +1872,15 @@ final class IntelligenceEngine: ObservableObject {
                 hrOwnerFlips: hrWindow.ownerFlips, rrOwnerFlips: rrWindow.ownerFlips,
                 hrReuseOff: hrWindow.reuseOffReads, rrReuseOff: rrWindow.reuseOffReads))
             return (out, skippedDayLines, dayScanCacheLocal, diskDaysLocal)
-        }.value
+        }
+        let (scanned, skippedDayLines, updatedDayScanCache, updatedDiskDays) = await withTaskCancellationHandler {
+            await scanTask.value
+        } onCancel: {
+            cancellation.cancel()
+            scanTask.cancel()
+        }
+        // Never treat a partial scan as completed, publish it, or advance its watermark.
+        if stopIfCancelled("scan") { return }
         // #1005: write the loop's updated reuse cache back to the (main-actor) stored property. The pass ran
         // to completion above (`.value` awaited), so there is no concurrent access.
         #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
@@ -2195,7 +2225,9 @@ final class IntelligenceEngine: ObservableObject {
         var appliedLegacySnapshots: [String: LegacyScoreSnapshot] = [:]
         var paceMark = DispatchTime.now().uptimeNanoseconds
         for night in scoredNights {
+            if stopIfCancelled("score") { return }
             await RescoreBackgroundScheduler.paceIfBackgrounded(since: &paceMark)
+            if stopIfCancelled("score") { return }
             // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
             // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
             // is stable under a bedtime edit (only the onset/`startTsAdjusted` moves), so end-day is the
@@ -2408,6 +2440,7 @@ final class IntelligenceEngine: ObservableObject {
         // never fabricated). Rebuild the row with the new recovery; every other field is unchanged.
         var appleRecoveryRows: [DailyMetric] = []
         let appleByDay = Dictionary(appleRows.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
+        if stopIfCancelled("before-persist") { return }
         for w in watchScored {
             guard let recovery = w.recovery, let row = appleByDay[w.day] else { continue }
             appleRecoveryRows.append(row.with(recovery: recovery, skinTempDevC: row.skinTempDevC,
@@ -2678,9 +2711,9 @@ final class IntelligenceEngine: ObservableObject {
             }
         }
         let inStepsMotionCache = stepsMotionCache
-        let (refStepsByDay, motionByDay, updatedStepsMotionCache, stepsMotionLogLine):
-            ([String: Double], [String: Double], [String: (key: String, motion: Double)], String) =
-            await Task.detached(priority: .utility) {
+        if stopIfCancelled("before-calibration") { return }
+        let calibrationTask = Task.detached(priority: .utility) {
+            () -> ([String: Double], [String: Double], [String: (key: String, motion: Double)], String) in
             // Phone reference steps per day, from the apple-health daily rows (steps > 0 only).
             // #693: read `appleDaily`, NOT `dailyMetrics`. Apple-Health import writes the phone step count into
             // `appleDaily.steps` (Int?), never into a dailyMetric `steps` row , so the old `dailyMetrics` read
@@ -2703,6 +2736,7 @@ final class IntelligenceEngine: ObservableObject {
             var motionFolded = 0
             var motionWindow: Set<String> = []
             for off in 0..<stepsCalDays {
+                if cancellation.isCancelled { break }
                 let dayMid = Self.midnightLocal(nowLocalMidnight - off * 86_400, offsetSec: tzOffset)
                 let dayEnd = dayMid + 86_400 - 1
                 let dayKey = AnalyticsEngine.dayString(dayMid, offsetSec: tzOffset)
@@ -2745,7 +2779,14 @@ final class IntelligenceEngine: ObservableObject {
             let motionLog = StepsMotionCache.logLine(reused: motionReused, folded: motionFolded,
                                                      size: motionCacheLocal.count)
             return (refSteps, motion, motionCacheLocal, motionLog)
-        }.value
+        }
+        let (refStepsByDay, motionByDay, updatedStepsMotionCache, stepsMotionLogLine) = await withTaskCancellationHandler {
+            await calibrationTask.value
+        } onCancel: {
+            cancellation.cancel()
+            calibrationTask.cancel()
+        }
+        if stopIfCancelled("calibration") { return }
         stepsMotionCache = updatedStepsMotionCache
         // Write the pruned cache back, only when it moved. `serialize` renders sorted, so a pass that reused
         // every day produces the string already stored and skips the write entirely.
@@ -2980,6 +3021,7 @@ final class IntelligenceEngine: ObservableObject {
         // #836/#sleep-sync: record the complete raw-analysis fingerprint this run scored against, so a later
         // NON-forced tick can short-circuit while it's unchanged. Written ONLY at the end of a completed run (never on an
         // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
+        if stopIfCancelled("completion") { return }
         if !wmKey.isEmpty { UserDefaults.standard.set(wmKey, forKey: Self.analyzeWatermarkKey) }
         markPostLoopPhase("tail")
         diagnosticSink?(AnalysisPhaseTally.logLine(scope: "postLoop", postLoopPhases), nil)

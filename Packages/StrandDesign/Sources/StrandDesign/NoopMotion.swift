@@ -4,6 +4,8 @@ import SwiftUI
 // palette's NSColor path relies on it), but the dependency is explicit here because this file names
 // NSApplication and NSWindow directly rather than a type SwiftUI itself vends.
 import AppKit
+#elseif canImport(UIKit) && os(iOS)
+import UIKit
 #endif
 
 // MARK: - NoopMotion — the "Design Reset" motion set (WHOOP design language, 2026-06-22)
@@ -123,13 +125,16 @@ public final class NoopMotionState: ObservableObject {
     /// screen and the schedule free-runs once it is not. That is unproven and does not need to be true:
     /// drawing frames nobody can see is not worth doing either way.
     ///
-    /// iOS and watchOS never set this. The system already stops rendering a backgrounded app there, and
-    /// `scenePhase` covers what it does not; this is the gap AppKit leaves.
+    /// iOS uses the application inactivity gate below; watchOS leaves this false.
     @Published public private(set) var windowObscured: Bool = false
 
     /// The in-app "Reduce motion in NOOP" preference. Kept in step with `UserDefaults` so a
     /// non-SwiftUI reader (the motion sensor) and the `@AppStorage` toggle never disagree.
     @Published public private(set) var quietMotion: Bool
+
+    /// Stop decorative timelines while iOS is inactive, including background Bluetooth wakes.
+    /// Application notifications avoid one inactive scene pausing another active scene.
+    @Published public private(set) var applicationInactive = false
 
     private init() {
         isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
@@ -141,6 +146,23 @@ public final class NoopMotionState: ObservableObject {
                 self?.isLowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
             }
         }
+        #if os(iOS)
+        applicationInactive = UIApplication.shared.applicationState != .active
+        for name in [UIApplication.willResignActiveNotification, UIApplication.didEnterBackgroundNotification] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    if self?.applicationInactive == false { self?.applicationInactive = true }
+                }
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                if self?.applicationInactive == true { self?.applicationInactive = false }
+            }
+        }
+        #endif
         // `@AppStorage` writes straight to UserDefaults without telling us, so mirror the store.
         // `.didChangeNotification` is the only signal that covers a write from any target.
         NotificationCenter.default.addObserver(
@@ -211,13 +233,13 @@ public final class NoopMotionState: ObservableObject {
     /// ```
     @inline(__always)
     public func poseStill(_ reduceMotion: Bool) -> Bool {
-        reduceMotion || isLowPower || quietMotion || windowObscured
+        reduceMotion || isLowPower || quietMotion || windowObscured || applicationInactive
     }
 
     /// The non-environment signals on their own, for an imperative (non-View) reader that supplies its
     /// own Reduce Motion read — e.g. the decorative motion sensor deciding whether to start at all.
     /// Views must use `poseStill(_:)` instead so they invalidate correctly.
-    public var poseStillIgnoringReduceMotion: Bool { isLowPower || quietMotion || windowObscured }
+    public var poseStillIgnoringReduceMotion: Bool { isLowPower || quietMotion || windowObscured || applicationInactive }
 }
 
 // MARK: - CountUpText

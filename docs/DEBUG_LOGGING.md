@@ -15,7 +15,7 @@ can increase energy use. The capture-start journal entry lists those areas too.
 | Animation counters | Sky, liquid vessel, tube and HR-thread timeline evaluations | A counter/state check per existing animation tick. No new animation ticks or writes. This is the highest-frequency new instrumentation and can add battery overhead. Timeline evaluations are not proof of visible display frames. |
 | Log counters | Console versus other strap-log appends | A small check/counter update per append. Counts pressure on the published log without recursively appending diagnostic lines there. |
 | History stage timing | Decode/scheduling, preparation, store insert, publication/reject archive, raw preparation, cursor write; repeated cursor and local ACK outcome | Several monotonic clock reads per chunk. At most one normal journal line per 30 seconds and one slow/failed line per 5 seconds; suppressed events are counted in the next line. Replaces the previous per-chunk published ACK timing line. |
-| Analysis phases | Begin, scan return, full return, assertion expiry | Clock reads and a few journal writes per pass. Measures existing work; does not change cancellation or analysis scheduling. |
+| Analysis phases | Begin, scan return, full return, assertion expiry | Clock reads and a few journal writes per pass. Measures existing work; expiry requests cooperative cancellation and reports where it stopped. |
 | Performance snapshots | Process CPU delta, elapsed time, accumulated UI/log counters | One process CPU read and journal append at existing lifecycle, sync, keep-alive, analysis-return and assertion-expiry events. Process CPU includes other simultaneous app work. |
 | Existing BLE signal capture | RSSI and connection lifecycle, including failed connects | RSSI reads add radio traffic during the capture: healthy background links keep the existing five-minute policy; other qualifying states can use one minute. No new polling cadence or connection command is introduced. |
 | Journal storage | Existing HealthKit, BLE and new performance events | JSON encoding and file operations consume CPU and storage energy. The 24-hour deadline and file rotation bound retention; writes bypass SwiftUI's published strap log. |
@@ -29,3 +29,34 @@ with a build without the flag before attributing that overhead to ordinary use.
 
 The additional instrumentation is iOS-only. Shared pure timing/rate-limit helpers
 are covered by `OvernightDiagnosticsTests`; analytics and stored data are unchanged.
+
+## Persistent evidence and recovery
+
+These Apple changes also work after the temporary capture expires:
+
+- Decorative timelines using `NoopMotionState` pause whenever the iOS application is
+  inactive, including Bluetooth background wakes, and resume on activation.
+- Expired analysis assertions request cooperative cancellation. The detached day scan
+  and scoring loop check between work units and before daily-result persistence.
+  Cancelled scans are discarded; the watermark and owed-work marker stay pending.
+  The widest pending date range survives a retry, and incomplete one-time analysis
+  migrations remain pending. Detached calibration also checks cancellation between days.
+  An executing synchronous scoring unit is not preemptible. Persistence already in
+  progress finishes consistently. Cancellation is logged with its phase; it does not
+  prove that iOS will grant the next requested processing window.
+- Slow history chunks (at least one second) log stage durations and local ACK outcome
+  at most once per minute, including the number of suppressed slow events. Stage
+  clocks/string assembly add a small per-chunk cost even without the capture flag;
+  rare published lines can also invalidate the log UI. No new timer is created.
+- Rejected history reports integrity, missing timestamp, unmapped layout, or missing
+  usable HR/motion separately. Raw archival and persist-before-ACK rules are unchanged.
+- Console fragments escape control characters, remain separate, and mark truncation.
+  Escaping uses bounded input and the existing append, adding no extra file write.
+- Sync deferrals report the cooldown that actually blocked the request. Connection
+  epitaphs retain error, link duration, inbound traffic, and available signal evidence;
+  timeout/encryption messages alone do not establish a radio or firmware cause.
+
+Regression checks: `DeviceLogDiagnosticsTests`, `OvernightDiagnosticsTests`,
+`BackfillPolicyTests`, and `RescoreBackgroundSchedulerTests`. Build both Apple app
+schemes. Physical background/foreground and expiry testing remains necessary for
+battery and recovery claims; deterministic tests do not measure battery savings.

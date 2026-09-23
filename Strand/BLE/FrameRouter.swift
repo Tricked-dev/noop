@@ -778,11 +778,11 @@ public final class FrameRouter {
     }
 
     /// The one place the strap's own narration reaches the log, so the live and offload paths cannot
-    /// drift in what they emit. Capped at 300 characters to match the Kotlin twin exactly.
+    /// drift in what they emit. Escape control bytes and retain fragment boundaries in Apple logs.
     private func appendStrapConsole(_ parsed: ParsedFrame) {
         guard parsed.typeName == "CONSOLE_LOGS",
               let txt = parsed.parsed["log"]?.stringValue, !txt.isEmpty else { return }
-        state.append(log: "strap: \(String(txt.prefix(300)))")
+        state.append(log: "strap: \(DeviceLogDiagnostics.consoleFragment(txt))")
     }
 
     func dispatchLiveGestureIfFresh(frame: [UInt8], now: Int = Int(Date().timeIntervalSince1970)) {

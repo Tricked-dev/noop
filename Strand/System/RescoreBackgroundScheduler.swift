@@ -4,6 +4,16 @@ import BackgroundTasks
 import UIKit
 #endif
 
+// A task-local scope explicitly captured by detached analysis. Expiry is cooperative:
+// it prevents the next unit of work without publishing partial results or clearing the debt.
+final class RescoreCancellation: @unchecked Sendable {
+    @TaskLocal static var current: RescoreCancellation?
+    private let lock = NSLock()
+    private var stopped = false
+    var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return stopped }
+    func cancel() { lock.lock(); stopped = true; lock.unlock() }
+}
+
 /// Runs a backgrounded re-score somewhere it can actually finish, and records honestly when one did not.
 ///
 /// See `RescoreBackgroundPolicy` for the problem (#1538) and the decision rules. This is the plumbing:
@@ -57,6 +67,9 @@ enum RescoreBackgroundScheduler {
     /// chain never reaches a quiet interval it can stop at.
     static let owedAfterCompletedPassKey = "noop.rescoreOwedAfterCompletedPass"
 
+    static let owedWindowKey = "noop.rescoreOwedWindowDays"
+    static var owedWindowDays: Int { max(1, UserDefaults.standard.object(forKey: owedWindowKey) as? Int ?? 21) }
+
     static var isRescoreOwed: Bool { UserDefaults.standard.bool(forKey: owedKey) }
 
     /// True only while the outstanding debt came from a completed-but-unsettled pass. Cleared by the next
@@ -91,7 +104,11 @@ enum RescoreBackgroundScheduler {
     /// - Parameter passStarting: the caller is a pass about to work (not the deferral path), so the attempt
     ///   time is recorded for `RescoreBackgroundPolicy.interruptedRetryCooldownSeconds`.
     @discardableResult
-    static func markRescoreOwed(passStarting: Bool = false) -> String {
+    static func markRescoreOwed(passStarting: Bool = false, maxDays: Int? = nil) -> String {
+        if let maxDays {
+            let previous = isRescoreOwed ? owedWindowDays : 1
+            UserDefaults.standard.set(max(previous, maxDays), forKey: owedWindowKey)
+        }
         let token = UUID().uuidString
         if passStarting {
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastAttemptStartedAtKey)
@@ -137,6 +154,7 @@ enum RescoreBackgroundScheduler {
         let settled = maySettleDebt(capturedToken: owedToken, currentToken: currentOwedToken)
         if settled {
             UserDefaults.standard.set(false, forKey: owedKey)
+            UserDefaults.standard.removeObject(forKey: owedWindowKey)
         } else {
             // #2238: this pass finished and advanced the watermark; only a newer token outvoted it. Record
             // that, so the resume can gate on the fingerprint instead of forcing a pass whose inputs may be
@@ -261,27 +279,25 @@ enum RescoreBackgroundScheduler {
     /// in the log and where the work is escalated, rather than the process simply vanishing.
     private static func withAssertion(log: @escaping (String) -> Void, work: () async -> Void) async {
         #if os(iOS)
+        let cancellation = RescoreCancellation()
         let assertion = BackgroundAssertion()
         let taskID = UIApplication.shared.beginBackgroundTask(withName: "noop.rescore") {
-            // iOS invokes this on the main thread when it is about to reclaim the assertion. The pass
-            // itself cannot be cancelled from here — its heavy loop runs in a detached task, which does
-            // not inherit cancellation — so do not pretend to stop it. Record the fact and escalate:
-            // the owed mark is still set (only a completed pass clears it) and that is what the next
-            // decision reads.
+            // Share expiry with the detached scanner; keep the durable debt for a later wake.
             MainActor.assumeIsolated {
+                cancellation.cancel()
                 assertionExpiries += 1
                 #if NOOP_SYNC_DIAGNOSTICS
                 // DIAGNOSTIC BATTERY COST: one extra snapshot when an existing assertion expires.
-                OvernightDiagnostics.record("analysis-assertion expired workerCancellationRequested=false")
+                OvernightDiagnostics.record("analysis-assertion expired workerCancellationRequested=true")
                 OvernightDiagnostics.performanceSnapshot(reason: "analysis-assertion-expired")
                 #endif
-                log("re-score: background time expired mid-pass — it resumes on the next wake (#1538)")
+                log("re-score: background time expired — cancellation requested; unfinished work remains owed")
                 schedule()
                 assertion.end()
             }
         }
         assertion.store(taskID)
-        await work()
+        await RescoreCancellation.$current.withValue(cancellation) { await work() }
         // Idempotent under the box's lock, so the expiry path and this one cannot double-end the task —
         // which UIKit treats as a programmer error — and cannot leak it either.
         assertion.end()

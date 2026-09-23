@@ -5015,10 +5015,10 @@ public final class BLEManager: NSObject, ObservableObject {
         userPausedUntil = UserDefaults.standard.object(forKey: pauseKey) as? Double
         let retryKey = BackfillPolicy.retryKey(deviceId: deviceId)
         if case .manual = trigger { UserDefaults.standard.removeObject(forKey: retryKey) }
-        guard BackfillPolicy.phoneAllows(trigger: trigger, now: now, lastAttempt: last,
+        if let reason = BackfillPolicy.phoneDeferralReason(trigger: trigger, now: now, lastAttempt: last,
                                          lastCompleted: state.lastSyncedAt,
-                                         retryAfter: UserDefaults.standard.object(forKey: retryKey) as? Double) else {
-            log("Backfill: \(trigger) deferred — recent sync or stalled-transfer cooldown; Sync now is available.")
+                                         retryAfter: UserDefaults.standard.object(forKey: retryKey) as? Double) {
+            log("Backfill: \(trigger) deferred — \(reason); Sync now is available.")
             return
         }
         guard BackfillPolicy.userPauseAllows(trigger: trigger, now: now, pausedUntil: userPausedUntil) else {
