@@ -4868,6 +4868,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // On iPhone the additional signal read belongs only to this bounded development capture.
         #if os(iOS)
         #if NOOP_SYNC_DIAGNOSTICS
+        // DIAGNOSTIC BATTERY COST: the bounded capture enables extra RSSI radio reads.
+        // Existing cadence remains unchanged; see docs/DEBUG_LOGGING.md.
         let captureSignal = OvernightDiagnostics.isActive
         #else
         let captureSignal = false
@@ -5142,6 +5144,7 @@ public final class BLEManager: NSObject, ObservableObject {
         let now = Date().timeIntervalSince1970
         let gap = lastOvernightSnapshotAt == 0 ? -1 : now - lastOvernightSnapshotAt
         lastOvernightSnapshotAt = now
+        OvernightDiagnostics.performanceSnapshot(reason: reason)
         let hrAge = overnightLastHRAt == 0 ? -1 : now - overnightLastHRAt
         OvernightDiagnostics.record("status reason=\(reason) app=\(UIApplication.shared.applicationState.rawValue) connected=\(state.connected) bonded=\(state.bonded) historyReady=\(state.historyReady) sync=\(backfilling) live=\(state.liveFeedActive) hr=\(state.heartRate ?? -1) hrAgeSeconds=\(Int(hrAge)) rrPackets=\(state.rrSeq) battery=\(state.batteryPct ?? -1) lastFrame=\(state.lastFrameAtUnix ?? 0) lastSync=\(state.lastSyncedAt ?? 0) snapshotGapSeconds=\(Int(gap))")
     }

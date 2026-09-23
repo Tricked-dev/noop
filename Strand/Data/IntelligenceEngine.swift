@@ -796,6 +796,18 @@ final class IntelligenceEngine: ObservableObject {
         let reScoreStart = DispatchTime.now().uptimeNanoseconds
         let reScoreCPUStart = RescoreBackgroundScheduler.processCPUSeconds()
         let reScoreExpiriesAtStart = RescoreBackgroundScheduler.assertionExpiries
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        // DIAGNOSTIC BATTERY COST: phase timestamps and bounded local journal writes per analysis.
+        var performanceTrace = OvernightDiagnostics.isActive ? DiagnosticStageTrace() : nil
+        OvernightDiagnostics.record("analysis-phase begin days=\(maxDays) background=\(RescoreBackgroundScheduler.isBackgrounded)")
+        defer {
+            if var trace = performanceTrace {
+                trace.mark("score-and-persist")
+                OvernightDiagnostics.finishSpan("analysis", trace: trace, outcome: "returned")
+                OvernightDiagnostics.performanceSnapshot(reason: "analysis-returned")
+            }
+        }
+        #endif
         computing = true
         runningPassStart = reScoreStart
         runningPassDays = maxDays
@@ -1841,6 +1853,10 @@ final class IntelligenceEngine: ObservableObject {
         }.value
         // #1005: write the loop's updated reuse cache back to the (main-actor) stored property. The pass ran
         // to completion above (`.value` awaited), so there is no concurrent access.
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        performanceTrace?.mark("prepare-and-scan")
+        OvernightDiagnostics.record("analysis-phase scan-returned background=\(RescoreBackgroundScheduler.isBackgrounded) expiryDelta=\(RescoreBackgroundScheduler.assertionExpiries - reScoreExpiriesAtStart)")
+        #endif
         dayScanCache = updatedDayScanCache
         let diskChanged = diskDays != updatedDiskDays || persistedDiskConfiguration != diskConfig
         diskDays = updatedDiskDays

@@ -108,6 +108,10 @@ struct LiveView: View {
     @State private var showHRVSnapshot = false
 
     var body: some View {
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        // DIAGNOSTIC BATTERY COST: count body evaluations in memory; no per-render file writes.
+        let _ = OvernightDiagnostics.count("view.live")
+        #endif
         ScreenScaffold(title: "Live Body Console",
                        subtitle: "Current physiology, strap trust, and session controls in one working view.",
                        topBackground: liquidScaffoldSky()) {
@@ -1257,6 +1261,10 @@ private struct LiveLogCard: View {
     private var cardOpacity: Double { max(0, min(1, Double(cardOpacityPercent) / 100)) }
 
     var body: some View {
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        // DIAGNOSTIC BATTERY COST: hot-path counter, emitted only at existing lifecycle events.
+        let _ = OvernightDiagnostics.count("view.log-card")
+        #endif
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 Text("STRAP LOG").font(StrandFont.overline).tracking(StrandFont.overlineTracking)

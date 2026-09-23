@@ -300,6 +300,10 @@ struct LiquidVessel: View {
         // which read as juddery slosh. Only the 3 hero gauges + HR thread run live now (the small ones
         // are static), so the higher rate is affordable and the liquid actually flows.
         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { tl in
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            // DIAGNOSTIC BATTERY COST: count existing animation ticks in memory, never log each tick.
+            let _ = OvernightDiagnostics.count("timeline.vessel")
+            #endif
             let now = liquidSeconds(tl.date)
             Canvas { context, size in
                 sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: value ?? 0)
@@ -346,6 +350,10 @@ struct LiquidTube: View {
 
     private var liveTube: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { tl in
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            // DIAGNOSTIC BATTERY COST: count existing animation ticks in memory, never log each tick.
+            let _ = OvernightDiagnostics.count("timeline.tube")
+            #endif
             let now = liquidSeconds(tl.date)
             Canvas { context, size in
                 sim.step(now: now, tilt: LiquidMotion.shared.tilt, target: frac)
@@ -389,6 +397,10 @@ struct LiquidThread: View {
 
     private var liveThread: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60.0)) { tl in   // 60fps to flow smoothly on ProMotion
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            // DIAGNOSTIC BATTERY COST: count existing animation ticks in memory, never log each tick.
+            let _ = OvernightDiagnostics.count("timeline.thread")
+            #endif
             let now = liquidSeconds(tl.date)
             Canvas { context, size in
                 LiquidRender.thread(context, size, values: bpm, now: now, tint: tint, segments: segments)

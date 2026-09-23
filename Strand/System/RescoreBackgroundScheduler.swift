@@ -270,6 +270,11 @@ enum RescoreBackgroundScheduler {
             // decision reads.
             MainActor.assumeIsolated {
                 assertionExpiries += 1
+                #if NOOP_SYNC_DIAGNOSTICS
+                // DIAGNOSTIC BATTERY COST: one extra snapshot when an existing assertion expires.
+                OvernightDiagnostics.record("analysis-assertion expired workerCancellationRequested=false")
+                OvernightDiagnostics.performanceSnapshot(reason: "analysis-assertion-expired")
+                #endif
                 log("re-score: background time expired mid-pass — it resumes on the next wake (#1538)")
                 schedule()
                 assertion.end()

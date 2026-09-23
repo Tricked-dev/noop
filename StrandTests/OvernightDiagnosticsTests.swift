@@ -2,6 +2,22 @@ import XCTest
 @testable import Strand
 
 final class OvernightDiagnosticsTests: XCTestCase {
+    func testStageTimingIncludesWaitsWithoutClaimingCPUTime() {
+        var trace = DiagnosticStageTrace(now: 100)
+        trace.mark("decode", now: 102)
+        trace.mark("persist", now: 110)
+        XCTAssertEqual(trace.stages, ["decode=2000ms", "persist=8000ms"])
+        XCTAssertEqual(trace.elapsed(now: 112), 12)
+    }
+
+    func testBurstEmissionAccountsForSuppressedEventsAndResetsCount() {
+        var gate = DiagnosticEmissionGate()
+        XCTAssertEqual(gate.take(now: 100, interval: 30), 0)
+        for now in 101..<130 { XCTAssertNil(gate.take(now: Double(now), interval: 30)) }
+        XCTAssertEqual(gate.take(now: 130, interval: 30), 29)
+        XCTAssertEqual(gate.take(now: 160, interval: 30), 0)
+    }
+
     func testJournalPersistsAcrossWriterInstancesAndEscapesNewlines() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -27,7 +43,8 @@ final class OvernightDiagnosticsTests: XCTestCase {
 
     func testCaptureSelectsLifecycleAndOutcomeEventsWithoutPacketFlood() {
         for message in ["Backfill: session started", "Backfill diagnostic: elapsed=5000ms",
-                        "Disconnected — timeout", "→ Toggle Realtime HR payload=01", "Notify active data"] {
+                        "Disconnected — timeout", "Failed to connect — encryption timeout",
+                        "→ Toggle Realtime HR payload=01", "Notify active data"] {
             XCTAssertTrue(OvernightDiagnostics.shouldRecordBLE(message))
         }
         for message in ["strap: sensor console", "Backfill: ACK prepared for 50 frames",

@@ -310,6 +310,10 @@ struct LiquidTodayView: View {
     private static let topAnchorID = "liquidToday.top"
 
     var body: some View {
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        // DIAGNOSTIC BATTERY COST: count body evaluations in memory; no per-render file writes.
+        let _ = OvernightDiagnostics.count("view.today")
+        #endif
         ScrollViewReader { proxy in
         ScrollView {
             VStack(spacing: 0) {

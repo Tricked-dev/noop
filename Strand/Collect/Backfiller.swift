@@ -587,8 +587,18 @@ final class Backfiller {
 
     private func finishChunk(unix: UInt32, trim: UInt32, endFrame: [UInt8]) async {
         guard let endData = Backfiller.endData(from: endFrame, family: family) else { return }
-        #if NOOP_SYNC_DIAGNOSTICS
-        let preparationStarted = DispatchTime.now().uptimeNanoseconds
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        // DIAGNOSTIC BATTERY COST: monotonic stage clocks; bounded journal output bypasses UI logs.
+        var trace = OvernightDiagnostics.isActive ? DiagnosticStageTrace() : nil
+        var traceOutcome = "not-acked"
+        let repeatedCursor = lastAckedTrim == trim
+        defer {
+            if var trace {
+                trace.mark("tail")
+                OvernightDiagnostics.finishSpan("history", trace: trace,
+                    outcome: "\(traceOutcome) repeatedCursor=\(repeatedCursor) trim=\(trim)")
+            }
+        }
         #endif
 
         // #773: corrupt future-RTC detection. A HISTORY_END carries the strap's own clock; a genuine offload
@@ -638,6 +648,9 @@ final class Backfiller {
                 let rejected = rejectedHistoricalRecords(frames, family: fam)
                 return DecodedChunk(parsed: parsed, decoded: decoded, rejected: rejected)
             }.value
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            trace?.mark("decode-and-schedule")
+            #endif
             let parsed = d.parsed
             // #1008: per-chunk clock basis + R-R packing. The session summary logs only the FIRST chunk's
             // correlation, which cannot show the offset moving across a long offload nor separate "the same
@@ -862,7 +875,13 @@ final class Backfiller {
             // has already absorbed part of it.
             let rrCensus = RrEmissionStats.compute(decoded.rr.map { (ts: $0.ts, rrMs: $0.rrMs) })
             do {
+                #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+                trace?.mark("prepare-insert")
+                #endif
                 counts = try await store.insert(decoded, deviceId: deviceId)
+                #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+                trace?.mark("store-insert")
+                #endif
                 onBankedOffload(counts)
             } catch {
                 // Diag (#601): the decoded rows couldn't be written — this is the "history stalls but live HR
@@ -913,6 +932,10 @@ final class Backfiller {
                     return
                 }
             }
+
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            trace?.mark("publish-and-reject-archive")
+            #endif
 
             // RAW: only persisted when the research toggle is ON. Default OFF → decoded-only; the
             // chunk is still durably committed (decoded) so the trim is safe to advance + ack.
@@ -966,6 +989,9 @@ final class Backfiller {
             return
         }
 
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        trace?.mark("raw-and-cursor-preparation")
+        #endif
         do { try await store.setCursor("strap_trim", Int(trim)) } catch {
             // Diag (#601): decoded (and raw, if on) are durable but the strap_trim cursor write failed. We
             // return WITHOUT acking — acking now would let the strap trim past records the cursor hasn't
@@ -977,11 +1003,10 @@ final class Backfiller {
             return
         }
 
-        #if NOOP_SYNC_DIAGNOSTICS
-        // Measure only local END-to-ACK preparation. This excludes radio transfer and
-        // confirmation of the write, so it cannot be mistaken for end-to-end throughput.
-        let preparationMs = (DispatchTime.now().uptimeNanoseconds - preparationStarted) / 1_000_000
-        log?("Backfill: ACK prepared for \(frames.count) frames in \(preparationMs)ms locally")
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        trace?.mark("cursor-write")
+        // Prepared locally, not proof of radio delivery or strap acknowledgment.
+        traceOutcome = "ack-prepared frames=\(frames.count)"
         #endif
         ackTrim(trim, endData)
         lastAckedTrim = trim   // #364: record the advanced cursor for the auto-continue spin-detector

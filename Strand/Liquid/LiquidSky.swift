@@ -91,6 +91,10 @@ struct LiquidSky: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 20.0,
                                 paused: motion.poseStill(reduceMotion))) { tl in
+            #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+            // DIAGNOSTIC BATTERY COST: counter on each existing animation tick; no new ticks or writes.
+            let _ = OvernightDiagnostics.count("timeline.sky")
+            #endif
             let now = liquidSeconds(tl.date)
             let h = hour ?? liveHour()
             // The sky must dissolve into the SAME canvas colour the body uses (theme-aware surfaceBase),
