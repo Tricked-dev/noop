@@ -722,6 +722,7 @@ object SleepStager {
      * The flag travels on instead, so a consumer that wants to weigh an HR-only night down still can.
      */
     internal fun hrOnlySessions(
+        day: String,
         hr: List<HrSample>,
         rr: List<RrInterval>,
         resp: List<RespSample>,
@@ -740,6 +741,7 @@ object SleepStager {
         val baseline = percentileOfSorted(sortedBpm, hrOnlyAnchorPercentile)
         if (baseline == null) {
             traceSink?.invoke(SleepStagerTrace.hrOnlyLine(
+                day = day,
                 anchorBpm = null, bandBpm = null, hrP50 = null, hrP90 = null, epochs = 0, runs = 0, mergedRuns = 0,
                 sleepRuns = 0, longestSleepMin = 0, staged = 0, kept = 0, minSleepMin = minMinutes,
             ))
@@ -788,6 +790,7 @@ object SleepStager {
             )
         }
         traceSink?.invoke(SleepStagerTrace.hrOnlyLine(
+            day = day,
             anchorBpm = baseline,
             bandBpm = baseline * hrOnlyBandMult,
             // The wearer's own spread. An anchor alone cannot be judged: p10 of 60 means one thing when
@@ -2952,12 +2955,21 @@ object SleepStager {
     }
 
     /**
-     * Read-only REM-funnel triage for ONE in-bed window [start, end] (#688). Re-runs the SAME
-     * Stage-0→3 staging seam [stageSession] uses (epoch grid → Cole–Kripke → features → classify →
-     * smooth → re-impose), but instead of emitting a hypnogram it COUNTS where REM was lost. Changes
-     * NOTHING: no label, no score, no session. Returns null only when the window has too little gravity
-     * to grid (mirroring [stageSession]'s degenerate fallback, which carries no REM to explain). The
-     * caller logs `.summary`; tests assert the counts. Pure + deterministic. Mirrors Swift. (#688)
+     * Read-only REM-funnel triage for ONE in-bed window [start, end] (#688). Re-runs THIS object's
+     * Stage-0→3 seam (epoch grid → Cole–Kripke → features → classify → smooth → re-impose), but
+     * instead of emitting a hypnogram it COUNTS where REM was lost. Changes NOTHING: no label, no
+     * score, no session. Returns null only when the window has too little gravity to grid (mirroring
+     * [stageSession]'s degenerate fallback, which carries no REM to explain). The caller logs
+     * `.summary`; tests assert the counts. Pure + deterministic. Mirrors Swift. (#688)
+     *
+     * WHICH HYPNOGRAM THIS EXPLAINS. V1's, always — this is [SleepStager]'s own seam. It used to say it
+     * explained "the SAME hypnogram" as the screen, and that has been false since V2 became the
+     * default: the shipped hypnogram is staged by `SleepStagerV2` whenever `experimentalSleepV2` says
+     * so, which is by default. On a 5/MG the two can be far apart, because V1's primary REM gate needs
+     * the raw respiratory channel the hardware never emits while V2 recovers respiration regularity
+     * from R-R: one field pair reported ~46 min REM here against hours on the screen for the same night
+     * (#2365). The caller's line names both stagers for that reason (#2366); do not restore the claim
+     * that they are one.
      */
     fun remFunnelDiagnostic(
         start: Long, end: Long, grav: List<GravitySample>,

@@ -2340,6 +2340,7 @@
     <string name="today_how_score_generic">How this score is calculated</string>
     <string name="today_strap_battery">Strap battery</string>
     <string name="today_strap_battery_percent">Strap battery %1$d percent</string>
+    <string name="today_ring_battery_percent">Ring battery %1$d percent</string>
     <string name="today_score_solid">SOLID</string>
     <string name="today_charge_carried">Charge · %1$s</string>
     <string name="today_recovery_carried">Recovery · %1$s</string>
@@ -2811,4 +2812,41 @@
     <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">A stress screen that keeps up, WHOOP 5 readings in the units the strap sends, and a ring that stops repeating itself</string>
     <string name="l10n_settings_screen_ai_coach_130c3eab">AI Coach</string>
     <string name="l10n_app_changelog_a_gym_log_book_on_your_e0f00272">A gym log book on your wrist, a Coach you can switch off, and a Sync Strap shortcut</string>
+    <string name="l10n_live_screen_reconnect_ring_3111ab8f">Reconnect ring</string>
+    <string name="l10n_live_screen_ring_not_connected_c2418ea8">Ring not connected.</string>
+    <string name="l10n_live_screen_connecting_to_the_ring_af2900ea">Connecting to the ring…</string>
+    <string name="l10n_live_screen_connected_authenticating_fa9da040">Connected, authenticating…</string>
+    <string name="l10n_live_screen_connected_waiting_for_live_heart_rate_01d216bb">Connected, waiting for live heart rate.</string>
+    <string name="l10n_live_screen_live_heart_rate_is_flowing_from_f7f6c4fe">Live heart rate is flowing from the ring.</string>
+    <string name="l10n_live_screen_reconnect_drops_the_current_link_if_afc27801">Reconnect drops the current link, if any, and connects to the ring again. To pair or switch bands, open Devices.</string>
+    <string name="l10n_settings_screen_ring_gauges_on_today_7a532de2">Ring gauges on Today</string>
+    <string name="l10n_settings_screen_off_returns_the_liquid_vessels_6bb9236e">Off returns the liquid vessels.</string>
+    <string name="l10n_sleep_screen_low_confidence_99d4ceae">Low confidence</string>
+    <string name="l10n_sleep_screen_this_night_scored_high_efficiency_but_a11d90eb">This night scored high efficiency but very little deep or REM, more likely a staging estimate miss than a real restorative shortfall. The totals are kept as-is; read the split with care.</string>
+    <string name="l10n_health_screen_over_reports_r_r_so_no_9d050d53">Over-reports R-R, so no value is shown</string>
+    <string name="l10n_settings_screen_check_current_name_read_only_acb2f01a">Check current name (read-only)</string>
+    <string name="l10n_settings_screen_renaming_is_not_supported_on_a_02f7af2c">Renaming is not supported on a WHOOP 5.0 or MG yet. NOOP can ask the strap for its current name, which is the step that decides whether renaming is possible at all.</string>
+    <string name="l10n_settings_screen_experimental_on_a_whoop_5_0_711d5341">Experimental on a WHOOP 5.0 or MG: this command has never been confirmed on this strap generation. It is reversible, so rename again if it misbehaves, and use Check current name to see whether it took.</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_1_s_688166e3">Alarm in %1$s</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_less_than_a_minute_9821dce0">Alarm in less than a minute</string>
+    <plurals name="alarm_countdown_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <plurals name="alarm_countdown_hours">
+        <item quantity="one">%1$d hour</item>
+        <item quantity="other">%1$d hours</item>
+    </plurals>
+    <plurals name="alarm_countdown_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="l10n_settings_screen_gauge_numbers_db0d45e3">Gauge numbers</string>
+    <string name="l10n_settings_screen_bold_19e07430">Bold</string>
+    <string name="l10n_settings_screen_softer_9edfeba1">Softer</string>
+    <string name="oura_notify_mask_full_title">Oura notification mask ff (experimental)</string>
+    <string name="oura_notify_mask_full_desc">Sends the official app’s SetNotification mask (1c 01 ff) instead of NOOP’s 3f at the next connect. The ring packs ~10 packets per notification for the official app and one for NOOP (9× slower drains); this is the first candidate switch. Off by default; the next connect after turning it off is back on 3f. Watch the strap log for “-> notify_all(ff)” and compare notification sizes in the raw capture.</string>
+    <string name="data_sources_whoop_live_subtitle">Pairs directly with your strap over Bluetooth: no WHOOP app, no cloud. The strap can also advertise its heart rate as a standard Bluetooth sensor.</string>
+    <string name="data_sources_band_broadcast_description">Broadcasts the strap\'s own live heart rate over Bluetooth for Garmin, Zwift or gym equipment.</string>
+    <string name="whoop4_direct_broadcast_explainer">Your WHOOP 4.0 can broadcast heart rate directly. Open Data Sources and use “Broadcast heart rate from the strap” for Zwift, Peloton, Garmin or gym equipment. You can alternatively use “Broadcast HR from this phone” when needed.</string>
 </resources>

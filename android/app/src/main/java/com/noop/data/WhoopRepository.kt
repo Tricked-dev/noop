@@ -1154,6 +1154,16 @@ class WhoopRepository(
         if (deviceIds.isEmpty()) emptyList()
         else mergeHrByTs(deviceIds.map { dao.hrSamples(it, from, to, limit) })
 
+    /** Count and newest timestamp of measured HR per source [hrSamplesUnion] reads, as one string: an
+     *  index-only witness of whether a window's heart rate changed, without fetching a row. */
+    suspend fun hrUnionFingerprint(activeDeviceId: String, from: Long, to: Long): String {
+        val parts = ArrayList<String>()
+        for (id in rawWhoopSourceIds(activeDeviceId)) {
+            parts += "$id=${dao.countHrInWindow(id, from, to)}:${dao.maxHrTsInWindow(id, from, to)}"
+        }
+        return parts.joinToString(",")
+    }
+
     /**
      * HR samples over every registered WHOOP plus canonical "my-whoop", deduped by timestamp with the
      * active strap winning and archived straps retained for historical windows.
@@ -2045,6 +2055,32 @@ class WhoopRepository(
         List<SleepSession> {
         val ids = rawWhoopSourceIds(deviceId).map { "$it-noop" }
         return dedupSleepBlocks(ids.flatMap { dao.sleepSessions(it, from, to, limit) })
+    }
+
+    /**
+     * ALL sleep sessions across every registered WHOOP (active first, archived included, canonical
+     * last) over the last [days], imported [sleepSessionsUnion] merged with the computed
+     * [computedSleepSessionsUnion] twin: a computed session is kept only when its LOCAL wake-day (the
+     * same `AnalyticsEngine.dayString` keyer `mergeSleep` uses) is NOT already covered by an imported
+     * session that day — no richness exception, unlike `mergeSleepRichness`/[sleepSessionsMerged].
+     * Sorted by [SleepSession.effectiveStartTs] ascending, so the caller's `.lastOrNull()` is the most
+     * recent night. Robust to a stale/wrong [deviceId] (e.g. no strap currently connected) because
+     * [rawWhoopSourceIds] enumerates every registered WHOOP regardless of which id is passed in.
+     * Mirrors Swift `Repository.allSleepSessions(days:)` exactly.
+     */
+    suspend fun allSleepSessionsUnion(deviceId: String, days: Int = 4000): List<SleepSession> {
+        val now = System.currentTimeMillis() / 1000L
+        val lo = now - days * 86_400L
+        val hi = now + 86_400L
+        val imported = sleepSessionsUnion(deviceId, lo, hi)
+        val computed = computedSleepSessionsUnion(deviceId, lo, hi)
+        fun endDay(s: SleepSession): String {
+            val offsetSec = (java.util.TimeZone.getDefault().getOffset(s.endTs * 1000) / 1000).toLong()
+            return com.noop.analytics.AnalyticsEngine.dayString(s.endTs, offsetSec)
+        }
+        val importedDays = imported.mapTo(HashSet(), ::endDay)
+        val computedKept = computed.filter { endDay(it) !in importedDays }
+        return (imported + computedKept).sortedBy { it.effectiveStartTs }
     }
 
     /** Workouts over every registered WHOOP (active first, archived retained) plus canonical "my-whoop",

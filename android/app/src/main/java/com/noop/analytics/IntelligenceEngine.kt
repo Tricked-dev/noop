@@ -778,7 +778,8 @@ object IntelligenceEngine {
         // the Sleep tab resolve to the identical block. Mirrors Swift. (#547)
         val (habitualMidsleepSec, nightlyHours) = computeHabitualSleep(
             repo, importedDeviceId, computedId,
-            nowLocalMidnight - maxDays * SECONDS_PER_DAY - StreamReadCap.LOOKBACK_SECONDS, nowSeconds, tzOffsetSeconds,
+            nowLocalMidnight - maxDays * SECONDS_PER_DAY - StreamReadCap.LOOKBACK_SECONDS, nowSeconds,
+            finishedBefore = nowLocalMidnight, offsetSec = tzOffsetSeconds,
         )
         // Wave 0 (SL1/T1): personal sleep REGULARITY + population-anchored NEED, computed ONCE from the
         // trailing per-night durations and threaded to every analyzeDay below (mirrors the midsleep
@@ -1113,7 +1114,7 @@ object IntelligenceEngine {
                 when {
                     owner != importedDeviceId && stored.isNotEmpty() -> {
                         dayDiag(SleepStagerTrace.hrOnlyGateLine(
-                            attempted = false, reason = "stored-hypnogram",
+                            day = day, attempted = false, reason = "stored-hypnogram",
                             gravRows = grav.size, storedNights = stored.size,
                         ))
                         stored
@@ -1123,7 +1124,7 @@ object IntelligenceEngine {
                         // analyzeDay as "provided" — but they still mean this night is already known,
                         // so the heart-rate fallback stays out of it.
                         dayDiag(SleepStagerTrace.hrOnlyGateLine(
-                            attempted = false, reason = "stored-sessions-exist",
+                            day = day, attempted = false, reason = "stored-sessions-exist",
                             gravRows = grav.size, storedNights = stored.size,
                         ))
                         emptyList()
@@ -1137,10 +1138,10 @@ object IntelligenceEngine {
                         // little" is not "none", so the night it could produce is marked
                         // [DetectedSleep.hrOnly] like every other.
                         dayDiag(SleepStagerTrace.hrOnlyGateLine(
-                            attempted = true, reason = "no-motion-no-hypnogram",
+                            day = day, attempted = true, reason = "no-motion-no-hypnogram",
                             gravRows = grav.size, storedNights = 0,
                         ))
-                        SleepStager.hrOnlySessions(hr, rr, resp, traceSink = ::dayDiag)
+                        SleepStager.hrOnlySessions(day, hr, rr, resp, traceSink = ::dayDiag)
                     }
                 }
             } else {
@@ -1986,8 +1987,16 @@ object IntelligenceEngine {
         // "naps". Dedup each device's rows AMONG THEMSELVES and delete stale copies under that SAME id
         // (deleteSleepSessionRowOnly deletes under the row's own deviceId), never across ids, so a survivor
         // is never orphaned under an id the day-owner read skips. `freshStarts` (this pass's computed bank
-        // witness) only matches the computedId rows; the others fall back to longest-wins, the read-side
-        // dedup's own default. Sorted for a deterministic order. Mirrors the Swift analyzeRecent heal.
+        // witness) is handed ONLY to the computedId sweep; every other id falls back to longest-wins, the
+        // read-side dedup's own default. It used to be passed to every id on the claim that it "only
+        // matches the computedId rows" — false on an Oura day, where the pass's sessions ARE the ring's
+        // `providedSleep` rows with `startTs` copied verbatim. The ring row the pass had READ was then
+        // ranked "fresh" in the ring's own sweep and outranked every fuller re-serve the ring banked while
+        // the pass was in flight (hours, when the OS suspends the app between the read and this heal): on
+        // 09-19/20 the heal deleted the 598-min full night one second after it landed and kept the 337-min
+        // row read at 04:14, so the day ended at 04:48 instead of 08:21. `SleepSessionDedup.healWitness` is
+        // the one shared rule (twin of Swift's). Sorted for a deterministic order. Mirrors the Swift
+        // analyzeRecent heal.
         val healDeviceIds = healDeviceIds(computedId, candidatePriorities.map { it.first })
         // Compact shape of a row for the #1284 heal log — the two measures that adjudicate WHICH copy is
         // fuller (stage-segment count + decoded JSON length), in the SAME format as the dup-gen diagnostic
@@ -2004,7 +2013,8 @@ object IntelligenceEngine {
             val healable = storedSessions.filter {
                 AnalyticsEngine.dayString(it.endTs, tzOffsetSeconds) in oldestDay..newestDay
             }
-            val sweep = SleepSessionDedup.dedupe(healable, freshStarts = keptStarts)
+            val witness = SleepSessionDedup.healWitness(healId, computedId, keptStarts)
+            val sweep = SleepSessionDedup.dedupe(healable, freshStarts = witness)
             // Row-only delete: the user-facing deleteSleepSession writes a #33 dismissal tombstone, which
             // would overlap the SURVIVING night's window and permanently suppress its re-detection.
             for (stale in sweep.dropped) {
@@ -2504,6 +2514,10 @@ object IntelligenceEngine {
         return samples
     }
 
+    /** The sessions the sleep habits may learn from: those that ended before [before]. */
+    internal fun finishedSessions(sessions: List<SleepSession>, before: Long): List<SleepSession> =
+        sessions.filter { it.endTs < before }
+
     /**
      * Habitual midsleep (local seconds) AND the trailing per-night sleep DURATIONS (hours,
      * chronological) from the stored sessions over the window — the longest block per LOCAL day, so
@@ -2511,6 +2525,11 @@ object IntelligenceEngine {
      * sleep-need + regularity that thread into `analyzeDay` (Wave 0 · SL1/T1). The midsleep result is
      * byte-identical to before; the nightly-hours output is the extension. Mirrors Swift
      * `IntelligenceEngine.computeHabitualSleep`.
+     *
+     * Only sessions that ended before [finishedBefore] (the pass's local midnight) are learned from. Tonight's
+     * session is re-banked by every sync while it is still growing, and each time it moved the learned
+     * consistency and midsleep, so the day-cache signature changed and every pass re-scored the whole window.
+     * A night still being slept joins the history the day after (`computeHabitualSleep(finishedBefore:)`).
      */
     private suspend fun computeHabitualSleep(
         repo: WhoopRepository,
@@ -2518,6 +2537,7 @@ object IntelligenceEngine {
         computedId: String,
         windowStart: Long,
         windowEnd: Long,
+        finishedBefore: Long,
         offsetSec: Long,
     ): Pair<Long?, List<Double>> {
         val imported = repo.sleepSessionsForDevice(importedId, windowStart, windowEnd, 4000)
@@ -2528,7 +2548,7 @@ object IntelligenceEngine {
         // then steered the main-night pick (day assignment) to the stale block. The same collapse also
         // covers an imported night and its computed twin (the longest capture wins, exactly what the
         // per-day length rule chose anyway). Mirrors Swift.
-        val merged = SleepSessionDedup.dedupe(imported + computed).kept
+        val merged = finishedSessions(SleepSessionDedup.dedupe(imported + computed).kept, finishedBefore)
         // Longest block per LOCAL day (naps drop out), chosen by in-bed SPAN — reused for BOTH the
         // midsleep learner and the per-night durations (Wave 0 · SL1/T1), so the two can never read a
         // different history. For the DURATIONS we keep TST (span × efficiency), NOT the in-bed span:
@@ -3255,17 +3275,33 @@ object IntelligenceEngine {
     ): String {
         // `reason` names WHICH absence this is, because grav=0 is printed but its consequence is not.
         //
-        // `no-motion` USED to mean "and therefore nothing further was attempted" — the stager had no
+        // `no-motion` USED to mean "and therefore nothing further was attempted" - the stager had no
         // HR-only fallback, so no quantity of HR could stage a night. Since #1801 it does: a day with no
-        // gravity now also runs [SleepStager.hrOnlySessions], so this line printing `no-motion` means the
-        // motion spine was absent AND heart rate alone did not yield a night either — too little of it in
-        // the sleep band, or a run that staged to nothing. That is a stronger statement than it used to
-        // be, and the follow-up it wants is different: no longer "this strap cannot", but "why did the
-        // HR-only spine find nothing here".
+        // gravity now also runs [SleepStager.hrOnlySessions].
+        //
+        // Which is why grav=0 alone can no longer name the outcome. A 5/MG overnight capture showed this
+        // line reading `no-motion` while the HR-only spine on the SAME pass kept four sessions, the
+        // longest 311 minutes, and handed them over as `provided=3`. The reader was told nothing could
+        // stage a night while the log above said something had. So the no-gravity case splits by whether
+        // anything was actually provided:
+        //
+        //   no-motion                 no gravity, and nothing was provided either
+        //   no-motion-provided-unused no gravity, sessions WERE provided, and the night is still empty -
+        //                             they went in and no night came out, which is a question about what
+        //                             dropped them rather than about the strap
+        //
+        // Note "provided", not "HR-only". With no gravity `providedSleep` is the HR-only spine's output
+        // in the no-hypnogram branch, but it is STORED sessions in the stored-hypnogram one, and from
+        // here the two are indistinguishable. Naming the source would repeat the very over-claim this
+        // split exists to remove. The `[sleep] hr-only gate` trace is what says which branch ran.
         //
         // With motion present the inputs were there and staging still produced nothing, which remains the
         // case most worth investigating.
-        val reason = if (gravCount == 0) "no-motion" else "staged-none"
+        val reason = when {
+            gravCount > 0 -> "staged-none"
+            providedCount > 0 -> "no-motion-provided-unused"
+            else -> "no-motion"
+        }
         // #1118 follow-up: name any stream that came back AT its read cap. A read that returns exactly
         // the limit is the definition of truncated everywhere else here (`full.count >= limit`), and it
         // is the one thing a reader cannot infer from the counts alone - `grav=192698` looks healthy

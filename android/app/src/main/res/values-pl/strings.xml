@@ -2215,6 +2215,7 @@
     <string name="today_how_score_generic">Jak obliczany jest ten wynik</string>
     <string name="today_strap_battery">Bateria opaski</string>
     <string name="today_strap_battery_percent">Bateria opaski: %1$d procent</string>
+    <string name="today_ring_battery_percent">Bateria pierścienia: %1$d procent</string>
     <string name="today_score_solid">PEWNY</string>
     <string name="today_charge_carried">Energia · %1$s</string>
     <string name="today_recovery_carried">Regeneracja · %1$s</string>
@@ -2790,4 +2791,47 @@
     <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">Ekran stresu, który nadąża, odczyty WHOOP 5 w jednostkach wysyłanych przez opaskę i pierścień, który przestaje się powtarzać</string>
     <string name="l10n_settings_screen_ai_coach_130c3eab">Trener AI</string>
     <string name="l10n_app_changelog_a_gym_log_book_on_your_e0f00272">Dziennik treningowy na nadgarstku, Coach, którego możesz wyłączyć, i skrót do synchronizacji opaski</string>
+    <string name="l10n_live_screen_reconnect_ring_3111ab8f">Połącz ponownie pierścień</string>
+    <string name="l10n_live_screen_ring_not_connected_c2418ea8">Pierścień niepołączony.</string>
+    <string name="l10n_live_screen_connecting_to_the_ring_af2900ea">Łączenie z pierścieniem…</string>
+    <string name="l10n_live_screen_connected_authenticating_fa9da040">Połączono, uwierzytelnianie…</string>
+    <string name="l10n_live_screen_connected_waiting_for_live_heart_rate_01d216bb">Połączono, czekam na tętno na żywo.</string>
+    <string name="l10n_live_screen_live_heart_rate_is_flowing_from_f7f6c4fe">Tętno na żywo płynie z pierścienia.</string>
+    <string name="l10n_live_screen_reconnect_drops_the_current_link_if_afc27801">Połącz ponownie zrywa bieżące połączenie, jeśli istnieje, i ponownie łączy się z pierścieniem. Aby sparować lub przełączyć pasma, otwórz Urządzenia.</string>
+    <string name="l10n_settings_screen_ring_gauges_on_today_7a532de2">Wskaźniki pierścieniowe w Dzisiaj</string>
+    <string name="l10n_settings_screen_off_returns_the_liquid_vessels_6bb9236e">Wyłączone przywraca wskaźniki płynne.</string>
+    <string name="l10n_sleep_screen_low_confidence_99d4ceae">Niska pewność</string>
+    <string name="l10n_sleep_screen_this_night_scored_high_efficiency_but_a11d90eb">Ta noc uzyskała wysoką wydajność, ale bardzo mało snu głębokiego lub REM. To raczej błąd oszacowania faz niż rzeczywisty niedobór snu regeneracyjnego. Sumy pozostają bez zmian, czytaj podział ostrożnie.</string>
+    <string name="l10n_health_screen_over_reports_r_r_so_no_9d050d53">Zawyża liczbę interwałów R-R, więc nie pokazujemy wartości</string>
+    <string name="l10n_settings_screen_check_current_name_read_only_acb2f01a">Sprawdź bieżącą nazwę (tylko odczyt)</string>
+    <string name="l10n_settings_screen_renaming_is_not_supported_on_a_02f7af2c">Zmiana nazwy nie jest jeszcze obsługiwana w WHOOP 5.0 ani MG. NOOP może zapytać opaskę o jej bieżącą nazwę, co rozstrzygnie, czy zmiana nazwy jest w ogóle możliwa.</string>
+    <string name="l10n_settings_screen_experimental_on_a_whoop_5_0_711d5341">Eksperymentalne na WHOOP 5.0 lub MG: to polecenie nigdy nie zostało potwierdzone na tej generacji. Jest odwracalne, więc zmień nazwę ponownie, jeśli coś pójdzie nie tak, i sprawdź wynik przez Sprawdź bieżącą nazwę.</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_1_s_688166e3">Alarm za %1$s</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_less_than_a_minute_9821dce0">Alarm za mniej niż minutę</string>
+    <plurals name="alarm_countdown_days">
+        <item quantity="one">%1$d dzień</item>
+        <item quantity="few">%1$d dni</item>
+        <item quantity="many">%1$d dni</item>
+        <item quantity="other">%1$d dnia</item>
+    </plurals>
+    <plurals name="alarm_countdown_hours">
+        <item quantity="one">%1$d godzina</item>
+        <item quantity="few">%1$d godziny</item>
+        <item quantity="many">%1$d godzin</item>
+        <item quantity="other">%1$d godziny</item>
+    </plurals>
+    <plurals name="alarm_countdown_minutes">
+        <item quantity="one">%1$d minuta</item>
+        <item quantity="few">%1$d minuty</item>
+        <item quantity="many">%1$d minut</item>
+        <item quantity="other">%1$d minuty</item>
+    </plurals>
+    <string name="l10n_settings_screen_gauge_numbers_db0d45e3">Liczby na wskaźnikach</string>
+    <string name="l10n_settings_screen_bold_19e07430">Pogrubione</string>
+    <string name="l10n_settings_screen_softer_9edfeba1">Łagodniejsze</string>
+    <string name="oura_notify_mask_full_title">Maska powiadomień Oura ff (eksperymentalne)</string>
+    <string name="oura_notify_mask_full_desc">Przy następnym połączeniu wysyła maskę SetNotification oficjalnej aplikacji (1c 01 ff) zamiast 3f używanego przez NOOP. Pierścień pakuje ~10 pakietów w jedno powiadomienie dla oficjalnej aplikacji, a dla NOOP tylko jeden (9× wolniejsze zrzuty); to pierwszy kandydat na przełącznik. Domyślnie wyłączone; pierwsze połączenie po wyłączeniu wraca do 3f. Szukaj „-> notify_all(ff)” w dzienniku opaski i porównaj rozmiary powiadomień w surowym przechwyceniu.</string>
+    <string name="data_sources_whoop_live_subtitle">Łączy się bezpośrednio z paskiem przez Bluetooth: bez aplikacji WHOOP i bez chmury. Pasek może też nadawać tętno jako standardowy czujnik Bluetooth.</string>
+    <string name="data_sources_band_broadcast_description">Transmituje własne tętno paska na żywo przez Bluetooth do Garmin, Zwift lub sprzętu na siłowni.</string>
+    <string name="whoop4_direct_broadcast_explainer">WHOOP 4.0 może nadawać tętno bezpośrednio. Otwórz Źródła danych i użyj opcji „Transmituj tętno z opaski” dla Zwift, Peloton, Garmin lub sprzętu na siłowni. W razie potrzeby możesz też użyć opcji „Transmituj tętno z tego telefonu”.</string>
 </resources>

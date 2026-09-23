@@ -2218,6 +2218,7 @@
     <string name="today_how_score_generic">Comment ce score est calculé</string>
     <string name="today_strap_battery">Batterie du bracelet</string>
     <string name="today_strap_battery_percent">Batterie du bracelet : %1$d pour cent</string>
+    <string name="today_ring_battery_percent">Batterie de la bague : %1$d pour cent</string>
     <string name="today_score_solid">FIABLE</string>
     <string name="today_charge_carried">Score de Charge · %1$s</string>
     <string name="today_recovery_carried">Récupération · %1$s</string>
@@ -2781,4 +2782,41 @@
     <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">Un écran de stress qui suit le rythme, des mesures WHOOP 5 dans les unités que le bracelet envoie, et une bague qui cesse de se répéter</string>
     <string name="l10n_settings_screen_ai_coach_130c3eab">Coach IA</string>
     <string name="l10n_app_changelog_a_gym_log_book_on_your_e0f00272">Un carnet de musculation au poignet, un Coach que vous pouvez désactiver, et un raccourci pour synchroniser</string>
+    <string name="l10n_live_screen_reconnect_ring_3111ab8f">Reconnecter l\'anneau</string>
+    <string name="l10n_live_screen_ring_not_connected_c2418ea8">Anneau non connecté.</string>
+    <string name="l10n_live_screen_connecting_to_the_ring_af2900ea">Connexion à l\'anneau…</string>
+    <string name="l10n_live_screen_connected_authenticating_fa9da040">Connecté, authentification…</string>
+    <string name="l10n_live_screen_connected_waiting_for_live_heart_rate_01d216bb">Connecté, en attente de la fréquence cardiaque en direct.</string>
+    <string name="l10n_live_screen_live_heart_rate_is_flowing_from_f7f6c4fe">La fréquence cardiaque en direct arrive de l\'anneau.</string>
+    <string name="l10n_live_screen_reconnect_drops_the_current_link_if_afc27801">Reconnecter coupe le lien actuel, s\'il existe, et se reconnecte à l\'anneau. Pour associer ou changer de bande, ouvrez Appareils.</string>
+    <string name="l10n_settings_screen_ring_gauges_on_today_7a532de2">Jauges en anneau sur Aujourd\'hui</string>
+    <string name="l10n_settings_screen_off_returns_the_liquid_vessels_6bb9236e">Désactivé rétablit les jauges liquides.</string>
+    <string name="l10n_sleep_screen_low_confidence_99d4ceae">Confiance faible</string>
+    <string name="l10n_sleep_screen_this_night_scored_high_efficiency_but_a11d90eb">Cette nuit a obtenu une efficacité élevée mais très peu de sommeil profond ou paradoxal. C\'est plus probablement une erreur d\'estimation des phases qu\'un vrai déficit de récupération. Les totaux sont conservés, lisez la répartition avec prudence.</string>
+    <string name="l10n_health_screen_over_reports_r_r_so_no_9d050d53">Surestime les intervalles R-R, donc aucune valeur</string>
+    <string name="l10n_settings_screen_check_current_name_read_only_acb2f01a">Lire le nom actuel (lecture seule)</string>
+    <string name="l10n_settings_screen_renaming_is_not_supported_on_a_02f7af2c">Le renommage n\'est pas encore pris en charge sur une WHOOP 5.0 ou MG. NOOP peut demander au bracelet son nom actuel, ce qui déterminera si le renommage est possible.</string>
+    <string name="l10n_settings_screen_experimental_on_a_whoop_5_0_711d5341">Expérimental sur une WHOOP 5.0 ou MG : cette commande n\'a jamais été confirmée sur cette génération. Elle est réversible, renommez donc à nouveau en cas de problème, et utilisez Lire le nom actuel pour vérifier.</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_1_s_688166e3">Alarme dans %1$s</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_less_than_a_minute_9821dce0">Alarme dans moins d\'une minute</string>
+    <plurals name="alarm_countdown_days">
+        <item quantity="one">%1$d jour</item>
+        <item quantity="other">%1$d jours</item>
+    </plurals>
+    <plurals name="alarm_countdown_hours">
+        <item quantity="one">%1$d heure</item>
+        <item quantity="other">%1$d heures</item>
+    </plurals>
+    <plurals name="alarm_countdown_minutes">
+        <item quantity="one">%1$d minute</item>
+        <item quantity="other">%1$d minutes</item>
+    </plurals>
+    <string name="l10n_settings_screen_gauge_numbers_db0d45e3">Chiffres des jauges</string>
+    <string name="l10n_settings_screen_bold_19e07430">Gras</string>
+    <string name="l10n_settings_screen_softer_9edfeba1">Plus douce</string>
+    <string name="oura_notify_mask_full_title">Masque de notification Oura ff (expérimental)</string>
+    <string name="oura_notify_mask_full_desc">Envoie le masque SetNotification de l’application officielle (1c 01 ff) au lieu du 3f de NOOP à la prochaine connexion. La bague regroupe ~10 paquets par notification pour l’application officielle et un seul pour NOOP (vidage 9× plus lent) ; c’est le premier commutateur candidat. Désactivé par défaut ; la connexion suivant la désactivation repasse en 3f. Surveillez « -> notify_all(ff) » dans le journal du bracelet et comparez la taille des notifications dans la capture brute.</string>
+    <string name="data_sources_whoop_live_subtitle">S\'associe directement à votre bracelet par Bluetooth : pas d\'app WHOOP, pas de cloud. Le bracelet peut aussi annoncer sa fréquence cardiaque comme capteur Bluetooth standard.</string>
+    <string name="data_sources_band_broadcast_description">Diffuse en Bluetooth la fréquence cardiaque en direct propre au bracelet pour Garmin, Zwift ou les équipements de sport.</string>
+    <string name="whoop4_direct_broadcast_explainer">Votre WHOOP 4.0 peut diffuser directement la fréquence cardiaque. Ouvrez Sources de données et utilisez « Diffuser la fréquence cardiaque du bracelet » pour Zwift, Peloton, Garmin ou les équipements de sport. Vous pouvez aussi utiliser « Diffuser la FC depuis ce téléphone » si nécessaire.</string>
 </resources>

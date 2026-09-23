@@ -2140,6 +2140,7 @@
     <string name="today_how_score_generic">此分数的计算方式</string>
     <string name="today_strap_battery">手环电量</string>
     <string name="today_strap_battery_percent">手环电量：%1$d%%</string>
+    <string name="today_ring_battery_percent">戒指电量：%1$d%%</string>
     <string name="today_score_solid">可靠</string>
     <string name="today_charge_carried">充能 · %1$s</string>
     <string name="today_recovery_carried">恢复 · %1$s</string>
@@ -2756,4 +2757,38 @@
     </plurals>
     <string name="l10n_settings_screen_ai_coach_130c3eab">AI 教练</string>
     <string name="l10n_app_changelog_a_gym_log_book_on_your_e0f00272">腕上的健身记录本、可以完全关闭的 Coach，以及一个同步手环的快捷指令</string>
+    <string name="l10n_live_screen_reconnect_ring_3111ab8f">重新连接戒指</string>
+    <string name="l10n_live_screen_ring_not_connected_c2418ea8">戒指未连接。</string>
+    <string name="l10n_live_screen_connecting_to_the_ring_af2900ea">正在连接戒指…</string>
+    <string name="l10n_live_screen_connected_authenticating_fa9da040">已连接，正在认证…</string>
+    <string name="l10n_live_screen_connected_waiting_for_live_heart_rate_01d216bb">已连接，等待实时心率。</string>
+    <string name="l10n_live_screen_live_heart_rate_is_flowing_from_f7f6c4fe">实时心率正从戒指传来。</string>
+    <string name="l10n_live_screen_reconnect_drops_the_current_link_if_afc27801">重新连接会断开当前连接（如果有）并再次连接戒指。要配对或切换手环，请打开「设备」。</string>
+    <string name="l10n_settings_screen_ring_gauges_on_today_7a532de2">今天页面的环形仪表</string>
+    <string name="l10n_settings_screen_off_returns_the_liquid_vessels_6bb9236e">关闭后恢复为液态仪表。</string>
+    <string name="l10n_sleep_screen_low_confidence_99d4ceae">置信度低</string>
+    <string name="l10n_sleep_screen_this_night_scored_high_efficiency_but_a11d90eb">这一晚睡眠效率很高，但深睡和快速眼动睡眠极少。这更可能是睡眠阶段判定的误差，而非真正的恢复不足。总计数值保持不变，请谨慎解读各阶段占比。</string>
+    <string name="l10n_health_screen_over_reports_r_r_so_no_9d050d53">R-R 间期计数偏多，因此不显示数值</string>
+    <string name="l10n_settings_screen_check_current_name_read_only_acb2f01a">读取当前名称（只读）</string>
+    <string name="l10n_settings_screen_renaming_is_not_supported_on_a_02f7af2c">WHOOP 5.0 或 MG 暂不支持重命名。NOOP 可以向手环查询当前名称，这一步决定重命名是否可行。</string>
+    <string name="l10n_settings_screen_experimental_on_a_whoop_5_0_711d5341">在 WHOOP 5.0 或 MG 上属实验功能：该命令从未在此代手环上得到确认。它可以撤销，若有异常请再次重命名，并用读取当前名称确认是否生效。</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_1_s_688166e3">闹钟将在 %1$s 后响起</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_less_than_a_minute_9821dce0">闹钟将在一分钟内响起</string>
+    <plurals name="alarm_countdown_days">
+        <item quantity="other">%1$d 天</item>
+    </plurals>
+    <plurals name="alarm_countdown_hours">
+        <item quantity="other">%1$d 小时</item>
+    </plurals>
+    <plurals name="alarm_countdown_minutes">
+        <item quantity="other">%1$d 分钟</item>
+    </plurals>
+    <string name="l10n_settings_screen_gauge_numbers_db0d45e3">仪表数字</string>
+    <string name="l10n_settings_screen_bold_19e07430">粗体</string>
+    <string name="l10n_settings_screen_softer_9edfeba1">更柔和</string>
+    <string name="oura_notify_mask_full_title">Oura 通知掩码 ff（实验性）</string>
+    <string name="oura_notify_mask_full_desc">下次连接时发送官方应用的 SetNotification 掩码（1c 01 ff），而不是 NOOP 的 3f。戒指为官方应用把约 10 个数据包打包进一条通知，为 NOOP 只发一个（读取慢 9 倍）；这是第一个候选开关。默认关闭；关闭后的下一次连接恢复为 3f。请在腕带日志中查看“-> notify_all(ff)”，并在原始捕获中比较通知大小。</string>
+    <string name="data_sources_whoop_live_subtitle">通过 Bluetooth 直接连接手环：无需 WHOOP 应用，也无需云端。手环还可以将心率作为标准 Bluetooth 传感器进行广播。</string>
+    <string name="data_sources_band_broadcast_description">通过 Bluetooth 将手环自身的实时心率广播给 Garmin、Zwift 或健身器材。</string>
+    <string name="whoop4_direct_broadcast_explainer">WHOOP 4.0 可以直接广播心率。打开“数据来源”，启用“从手环广播心率”，即可连接 Zwift、Peloton、Garmin 或健身器材。需要时也可以使用“从此手机广播心率”。</string>
 </resources>

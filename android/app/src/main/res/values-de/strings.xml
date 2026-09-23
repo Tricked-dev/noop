@@ -2232,6 +2232,7 @@
     <string name="today_how_score_generic">So wird dieser Wert berechnet</string>
     <string name="today_strap_battery">Strap-Akku</string>
     <string name="today_strap_battery_percent">Strap-Akku: %1$d Prozent</string>
+    <string name="today_ring_battery_percent">Ring-Akku: %1$d Prozent</string>
     <string name="today_score_solid">STABIL</string>
     <string name="today_charge_carried">Charge-Wert · %1$s</string>
     <string name="today_recovery_carried">Erholung · %1$s</string>
@@ -2795,4 +2796,41 @@
     <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">Ein Stress-Bildschirm, der mitkommt, WHOOP-5-Werte in den Einheiten, die das Band sendet, und ein Ring, der sich nicht mehr wiederholt</string>
     <string name="l10n_settings_screen_ai_coach_130c3eab">KI-Coach</string>
     <string name="l10n_app_changelog_a_gym_log_book_on_your_e0f00272">Ein Trainingstagebuch am Handgelenk, ein Coach, den du abschalten kannst, und ein Kurzbefehl zum Synchronisieren</string>
+    <string name="l10n_live_screen_reconnect_ring_3111ab8f">Ring neu verbinden</string>
+    <string name="l10n_live_screen_ring_not_connected_c2418ea8">Ring nicht verbunden.</string>
+    <string name="l10n_live_screen_connecting_to_the_ring_af2900ea">Verbindung mit dem Ring wird hergestellt …</string>
+    <string name="l10n_live_screen_connected_authenticating_fa9da040">Verbunden, Authentifizierung läuft …</string>
+    <string name="l10n_live_screen_connected_waiting_for_live_heart_rate_01d216bb">Verbunden, warte auf Live-Herzfrequenz.</string>
+    <string name="l10n_live_screen_live_heart_rate_is_flowing_from_f7f6c4fe">Live-Herzfrequenz kommt vom Ring.</string>
+    <string name="l10n_live_screen_reconnect_drops_the_current_link_if_afc27801">„Neu verbinden“ trennt die aktuelle Verbindung, falls vorhanden, und verbindet den Ring erneut. Zum Koppeln oder Wechseln von Bändern öffne „Geräte“.</string>
+    <string name="l10n_settings_screen_ring_gauges_on_today_7a532de2">Ring-Anzeigen auf Heute</string>
+    <string name="l10n_settings_screen_off_returns_the_liquid_vessels_6bb9236e">Aus zeigt wieder die Liquid-Anzeigen.</string>
+    <string name="l10n_sleep_screen_low_confidence_99d4ceae">Geringe Konfidenz</string>
+    <string name="l10n_sleep_screen_this_night_scored_high_efficiency_but_a11d90eb">Diese Nacht erreichte eine hohe Effizienz, aber sehr wenig Tief- oder REM-Schlaf. Das ist eher ein Schätzfehler der Schlafphasen als ein echtes Erholungsdefizit. Die Werte bleiben unverändert, lies die Aufteilung mit Bedacht.</string>
+    <string name="l10n_health_screen_over_reports_r_r_so_no_9d050d53">Meldet zu viele RR-Intervalle, daher kein Wert</string>
+    <string name="l10n_settings_screen_check_current_name_read_only_acb2f01a">Aktuellen Namen abfragen (nur lesen)</string>
+    <string name="l10n_settings_screen_renaming_is_not_supported_on_a_02f7af2c">Umbenennen wird bei einer WHOOP 5.0 oder MG noch nicht unterstützt. NOOP kann das Band nach seinem aktuellen Namen fragen. Das entscheidet, ob Umbenennen überhaupt möglich ist.</string>
+    <string name="l10n_settings_screen_experimental_on_a_whoop_5_0_711d5341">Experimentell bei WHOOP 5.0 oder MG: Dieser Befehl wurde für diese Strap-Generation nie bestätigt. Er ist umkehrbar, benenne also erneut um, falls etwas schiefgeht, und prüfe mit Aktuellen Namen abfragen, ob es gewirkt hat.</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_1_s_688166e3">Wecker in %1$s</string>
+    <string name="l10n_smart_alarm_screen_alarm_in_less_than_a_minute_9821dce0">Wecker in weniger als einer Minute</string>
+    <plurals name="alarm_countdown_days">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
+    <plurals name="alarm_countdown_hours">
+        <item quantity="one">%1$d Stunde</item>
+        <item quantity="other">%1$d Stunden</item>
+    </plurals>
+    <plurals name="alarm_countdown_minutes">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
+    <string name="l10n_settings_screen_gauge_numbers_db0d45e3">Zahlen auf den Anzeigen</string>
+    <string name="l10n_settings_screen_bold_19e07430">Fett</string>
+    <string name="l10n_settings_screen_softer_9edfeba1">Weicher</string>
+    <string name="oura_notify_mask_full_title">Oura-Benachrichtigungsmaske ff (experimentell)</string>
+    <string name="oura_notify_mask_full_desc">Sendet beim nächsten Verbinden die SetNotification-Maske der offiziellen App (1c 01 ff) statt NOOPs 3f. Der Ring packt für die offizielle App ~10 Pakete in eine Benachrichtigung, für NOOP nur eines (9× langsameres Auslesen); das ist der erste Kandidat für den Schalter. Standardmäßig aus; die erste Verbindung nach dem Ausschalten läuft wieder mit 3f. Im Strap-Protokoll auf „-> notify_all(ff)“ achten und die Benachrichtigungsgrößen in der Rohaufzeichnung vergleichen.</string>
+    <string name="data_sources_whoop_live_subtitle">Koppelt sich direkt über Bluetooth mit deinem Strap: keine WHOOP-App, keine Cloud. Der Strap kann seine Herzfrequenz außerdem als Standard-Bluetooth-Sensor senden.</string>
+    <string name="data_sources_band_broadcast_description">Sendet die eigene Live-Herzfrequenz des Straps über Bluetooth für Garmin, Zwift oder Fitnessgeräte.</string>
+    <string name="whoop4_direct_broadcast_explainer">Dein WHOOP 4.0 kann die Herzfrequenz direkt übertragen. Öffne Datenquellen und verwende „Herzfrequenz vom Band übertragen“ für Zwift, Peloton, Garmin oder Fitnessgeräte. Bei Bedarf kannst du alternativ „HF von diesem Telefon übertragen“ verwenden.</string>
 </resources>
