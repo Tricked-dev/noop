@@ -52,6 +52,11 @@ final class Collector {
     /// decoded-only. Injected for tests; backed by UserDefaults in the production init site.
     private let enableRawCapture: Bool
     private let now: () -> Int
+    /// The standard-HR host-received lines, summarised — see `LivePersistTrace.StandardHRHostReceivedTrace`.
+    private var hostReceived = LivePersistTrace.StandardHRHostReceivedTrace()
+    /// Whether the per-sample readout is wanted: the app wires this to the Test Centre's HRV and Connection
+    /// modes, and tests set it directly. Read once per sample, a Bool through a closure.
+    var hostReceivedDetail: () -> Bool = { false }
     private let monotonic: () -> TimeInterval
 
     /// Set once the GET_CLOCK correlation lands (E1). Until then, frames buffer un-persisted.
@@ -92,10 +97,6 @@ final class Collector {
 
     /// Detailed routine logs are opt-in; summaries, errors and recovery remain visible.
     var detailedDiagnostics: () -> Bool = { TestCentre.active(.connection) }
-    private var standardSummaryAt: TimeInterval?
-    private var standardSummaryReadings = 0
-    private var standardSummaryHR = 0
-    private var standardSummaryRR = 0
 
     /// Consecutive live-persist failures per transport, and when each last reported.
     ///
@@ -303,22 +304,15 @@ final class Collector {
                 fromHR: hr, rr: [], contact: contact, at: ts
             ).events)
         }
-        if detailedDiagnostics() {
-            log?(LivePersistTrace.standardHRHostReceivedLine(
-                hostUnixSeconds: ts,
-                acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,
-                rejectedHRRows: 1 - acceptedHR, rejectedRRRows: rr.count - acceptedRR.count,
-                pendingHRRows: stdHR.count, pendingRRRows: stdRR.count))
-        }
-        standardSummaryReadings += 1
-        standardSummaryHR += acceptedHR
-        standardSummaryRR += acceptedRR.count
-        let summaryNow = monotonic()
-        if standardSummaryAt == nil { standardSummaryAt = summaryNow }
-        if summaryNow - (standardSummaryAt ?? summaryNow) >= 60 {
-            log?("standard-hr summary readings=\(standardSummaryReadings) acceptedHR=\(standardSummaryHR) acceptedRR=\(standardSummaryRR)")
-            standardSummaryReadings = 0; standardSummaryHR = 0; standardSummaryRR = 0
-            standardSummaryAt = summaryNow
+        // One line a minute, not one a second: a refusal is written at once, the routine ones are counted, and
+        // the full per-sample readout comes back while a Test Centre mode is on (`hostReceivedDetail`).
+        for line in hostReceived.record(
+            .init(hostUnixSeconds: ts,
+                  acceptedHRRows: acceptedHR, acceptedRRRows: acceptedRR.count,
+                  rejectedHRRows: 1 - acceptedHR, rejectedRRRows: rr.count - acceptedRR.count,
+                  pendingHRRows: stdHR.count, pendingRRRows: stdRR.count),
+            detailed: hostReceivedDetail()) {
+            log?(line)
         }
         if stdHR.count + stdRR.count + stdContact.count >= 30 {
             Task { @MainActor in await self.flushStandardHR(reason: .cadence) }
@@ -327,6 +321,11 @@ final class Collector {
 
     /// Persist the buffered standard HR/RR/contact. Re-buffers on failure so nothing is lost.
     func flushStandardHR(reason: LivePersistTrace.StandardHRFlushReason = .explicit) async {
+        // The stream is ending, not just filling: write the window so far, or the last minute of a session
+        // leaves with the process. A cadence flush is mid-stream and keeps counting.
+        if reason != .cadence, reason != .explicit {
+            for line in hostReceived.close() { log?(line) }
+        }
         guard !stdHR.isEmpty || !stdRR.isEmpty || !stdContact.isEmpty else { return }
         let hr = stdHR, rr = stdRR, contact = stdContact
         stdHR.removeAll(keepingCapacity: true)

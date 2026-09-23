@@ -804,6 +804,16 @@ public final class BLEManager: NSObject, ObservableObject {
     /// `ConnectionReadout.linkEpitaph` together so the age is always printed with the value.
     ///
     /// Diagnostic only — nothing reads these to make a decision.
+    /// #2397: how many RSSI readings this link produced, and their worst and total, so the epitaph can
+    /// report a SHAPE rather than a point. #2332 added the periodic read and kept only the latest value,
+    /// so a link that took 200 readings reported one of them. Last alone cannot separate "marginal all
+    /// along" from "walked out of range", which is the question a supervision timeout raises.
+    ///
+    /// Free: fed by readings the periodic read ALREADY takes. No extra radio work, no new timer.
+    private var rssiReads = 0
+    private var rssiWorstDbm: Int?
+    private var rssiSumDbm = 0
+
     private var lastRssiDbm: Int?
     /// When `lastRssiDbm` was read. Monotonic, matching `linkUpSince`, so a wall-clock change mid-link
     /// cannot make the printed age negative. Meaningless unless `lastRssiDbm` is non-nil.
@@ -1513,6 +1523,9 @@ public final class BLEManager: NSObject, ObservableObject {
                                   // Live path: hr/rr are all the realtime decoder yields.
                                   self?.liveHr += c.hr; self?.liveRr += c.rr
                               })
+        // The per-sample host-received readout belongs to the modes that exist for it; without one, the log
+        // carries the summary instead (`LivePersistTrace.StandardHRHostReceivedTrace`).
+        collector?.hostReceivedDetail = { TestCentre.active(.hrv) || TestCentre.active(.connection) }
         // The store can finish bootstrapping AFTER connect(model:) already ran (both wait on
         // poweredOn), so apply the family/clock configuration here too — whichever runs last wins.
         configureCollectorFamily()
@@ -3821,18 +3834,19 @@ public final class BLEManager: NSObject, ObservableObject {
         finishR22Disable()
     }
 
-    /// EXPERIMENTAL (#181): make a bonded WHOOP 5/MG advertise its heart rate as a standard BLE HR
-    /// sensor (0x180D + the live HR in its manufacturer data) by writing the device-config flag
-    /// `whoop_live_hr_in_adv_ind_pkt` = "1" (on) / "0" (off) via SET_DEVICE_CONFIG (0x77). With it on, a
-    /// Garmin (Edge/watch), Zwift or gym HR client can pair to the WHOOP directly during a workout.
-    /// Validated on real hardware (paired on a Garmin Edge 840). Opt-in, reversible; unlike R22 it is NOT
-    /// on-wrist gated. Re-applied on each 5/MG connection. iOS/Android only (macOS can't bond a 5/MG).
+    /// Make a bonded strap advertise as a standard BLE HR sensor. WHOOP 4 uses the reversible
+    /// TOGGLE_GENERIC_HR_PROFILE command; WHOOP 5/MG keeps the existing device-config path.
     public func setBroadcastHr(_ on: Bool) {
-        guard selectedModel.deviceFamily == .whoop5 else {
-            log("Broadcast HR: needs a WHOOP 5.0/MG strap selected — ignored."); return
-        }
         guard state.connected, state.bonded else {
-            log("Broadcast HR: connect and bond a 5/MG strap first — ignored."); return
+            log("Broadcast HR: connect and bond the strap first — ignored."); return
+        }
+        if selectedModel.deviceFamily == .whoop4 {
+            send(.toggleGenericHRProfile, payload: [on ? 0x01 : 0x00])
+            log("Broadcast HR: WHOOP 4 \(on ? "enable" : "disable") command sent (14); effect not confirmed.")
+            return
+        }
+        guard selectedModel.deviceFamily == .whoop5 else {
+            log("Broadcast HR: strap family is not known yet — ignored."); return
         }
         // Mutually exclusive with the ECG gate: both verify over the SAME 121 read-back opcode, so if both
         // were in flight one strap reply would be consumed by both handlers and cross-contaminate the other's
@@ -3932,7 +3946,8 @@ public final class BLEManager: NSObject, ObservableObject {
             return
         }
         // The full encrypted bond, not the live-HR-only link — a config write over the latter silently
-        // fails (#269). Matches the R22 write paths and the button's own `ecgGateReady` gate in Settings.
+        // fails (#269). Matches the R22 write paths; the Settings button that carried the same gate as
+        // `ecgGateReady` went with the WHOOP 5/MG research card in #2417, so this is the gate now.
         guard state.connected, state.encryptedBond else {
             log("ECG gate (#891): needs the full encrypted bond, not the live-HR-only link — close the official WHOOP app and pair the strap to NOOP first. Ignored."); return
         }
@@ -6052,6 +6067,8 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // #1809: this link's inbound tally starts empty; the epitaph on disconnect reports exactly what
         // arrived between here and there.
         inboundFrames = 0; inboundBytes = 0; cmdChannelFrames = 0
+        // #2397: and the per-link signal shape, for the same reason.
+        rssiReads = 0; rssiWorstDbm = nil; rssiSumDbm = 0
         // #1635: same guarantee for the banked tally. Clearing only on teardown would be enough if every
         // link ended in one, and a link that begins without a preceding clean teardown would otherwise
         // open holding the previous link's rows — reporting them as banked on a link that never saw them.
@@ -6255,7 +6272,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             log(ConnectionReadout.linkEpitaph(upMillis: upMs, inboundFrames: inboundFrames,
                                               inboundBytes: inboundBytes, cmdChannelFrames: cmdChannelFrames,
                                               realtimeArmed: realtimeArmedAt != nil, ended: endedReason,
-                                              rssiDbm: lastRssiDbm, rssiAgeMillis: rssiAgeMs))
+                                              rssiDbm: lastRssiDbm, rssiAgeMillis: rssiAgeMs,
+                                              rssiReads: rssiReads, rssiWorstDbm: rssiWorstDbm,
+                                              rssiSumDbm: rssiSumDbm))
             // #1635: LIVE streams only — the offload persists through `Backfiller` and has its own
             // accounting, so folding it in would make a healthy bonded sync read as "nothing banked live
             // for: gravity". Inside the same `linkUpSince` guard for the same reason the epitaph is.
@@ -6276,6 +6295,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         }
         // Clear the tally with the link, so a second teardown for the same drop cannot re-report it.
         inboundFrames = 0; inboundBytes = 0; cmdChannelFrames = 0
+        rssiReads = 0; rssiWorstDbm = nil; rssiSumDbm = 0
         liveHr = 0; liveRr = 0; offloadHr = 0; offloadRr = 0
         offloadGravity = 0; offloadResp = 0; offloadSkinTemp = 0; offloadSpo2 = 0; offloadChunks = 0
         linkUpSince = nil
@@ -6690,6 +6710,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         guard !stale else { return }
         lastRssiDbm = rssi
         lastRssiAt = DispatchTime.now()
+        // #2397: fold into the per-link shape. AFTER the stale guard, for the same reason the stash is:
+        // a late answer from a dead link must not be counted against the live one's summary.
+        rssiReads += 1
+        rssiSumDbm += rssi
+        rssiWorstDbm = rssiWorstDbm.map { min($0, rssi) } ?? rssi
     }
 
     public func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
@@ -7125,6 +7150,8 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in self?.requestConnectSync() }
         startBackfillTimer()   // re-offload the type-47 store every backfillIntervalSeconds
         startKeepAlive()       // always-ping: re-arm realtime, poll battery, watchdog the link
+        // WHOOP 4's broadcast mode is link/runtime state, so restore an opted-in mode after reconnect.
+        if PuffinExperiment.broadcastHrEnabled { setBroadcastHr(true) }
         enableLiveNotifications(reason: "post-bond")   // includes 0x2A37 standard HR — the fallback path
         // #927: RE-DERIVE the want at arm time (same reasoning as the 5/MG branch above): a reconnect
         // outside the overnight window must not arm the flood from a stale precomputed `wantsRealtime`

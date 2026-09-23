@@ -207,7 +207,16 @@ public final class FrameRouter {
                              domain: .connection)
             }
             if family == .whoop4, let cmd = parsed.cmdName {
-                if cmd.hasPrefix("GET_ADVERTISING_NAME_HARVARD") {
+                if cmd.hasPrefix("TOGGLE_GENERIC_HR_PROFILE") {
+                    // #2400: this is evidence that the strap answered opcode 14, not a read-back of the
+                    // advertising state. Preserve the raw result byte + frame so another firmware's
+                    // response can be compared without turning an acknowledgement into a false verdict.
+                    let r = Self.commandResultByte(in: frame, family: family)
+                    let rhex = r.map { String(format: "0x%02x", UInt8(truncatingIfNeeded: $0)) } ?? "none"
+                    state.append(log: "Broadcast HR: WHOOP 4 command response received "
+                                 + "resultByte=\(rhex), effect not confirmed "
+                                 + "frame=\(Self.fullFrameHex(frame))")
+                } else if cmd.hasPrefix("GET_ADVERTISING_NAME_HARVARD") {
                     if let name = Self.advertisingName(in: frame), !name.isEmpty {
                         state.advertisingName = name
                     }
@@ -441,6 +450,16 @@ public final class FrameRouter {
                 if !ev.hasPrefix("BLE_REALTIME_HR") {
                     state.lastEvent = ev
                 }
+                // A double-tap is handed on BEFORE the sync kick below, because what it triggers is
+                // usually a buzz that says "that registered", and a write that follows the sync
+                // request reaches the strap after it. The strap then starts the history transfer
+                // first and plays the buzz behind it: in a 16 Sep 2026 gym log the four taps that
+                // kicked a sync buzzed 1.0–2.8 s after the strap sensed them, and most of the others
+                // in under one. Live only (this path never sees historical replay, which goes through
+                // the Backfiller). Event strings are "NAME(rawValue)".
+                if ev.hasPrefix("DOUBLE_TAP") {
+                    dispatchDoubleTapOnce(eventTimestamp: parsed.parsed["event_timestamp"]?.intValue)
+                }
                 // Strap-pushed event = "I may have new data" → kick a (rate-limited) sync.
                 onSyncTrigger?()
                 // Belt-and-suspenders: a BLE_BONDED event confirms the link is bonded.
@@ -494,11 +513,9 @@ public final class FrameRouter {
                 } else if ev.hasPrefix("BATTERY_PACK_REMOVED") {
                     state.charging = false
                 }
-                // Physical inputs the strap exposes — live only (this path never sees historical
-                // replay, which goes through the Backfiller). Event strings are "NAME(rawValue)".
-                if ev.hasPrefix("DOUBLE_TAP") {
-                    dispatchDoubleTapOnce(eventTimestamp: parsed.parsed["event_timestamp"]?.intValue)
-                } else if ev.hasPrefix("WRIST_ON") {
+                // The other physical inputs the strap exposes — live only, as above. The double-tap
+                // was handled before the sync kick.
+                if ev.hasPrefix("WRIST_ON") {
                     if !state.worn { state.worn = true; state.onWristChange?(true) }
                 } else if ev.hasPrefix("WRIST_OFF") {
                     if state.worn { state.worn = false; state.onWristChange?(false) }
@@ -804,8 +821,9 @@ public final class FrameRouter {
             // register" can be checked: a live dispatch leaves "Double-tap → …" at that moment, and a
             // tap that only ever came through a sync leaves just this. It asserts only the delivery seen.
             if ev.hasPrefix("DOUBLE_TAP"), age > 0, age <= FrameRouter.lateGestureLogSeconds {
-                state.append(log: "Double-tap (strap time \(ts)) arrived \(age) s late during a sync; "
-                             + "not acted on (live window \(FrameRouter.liveGestureWindowSeconds) s)")
+                state.append(log: AppModel.stamped(
+                    "Double-tap (strap time \(ts)) arrived \(age) s late during a sync; "
+                    + "not acted on (live window \(FrameRouter.liveGestureWindowSeconds) s)"))
             }
             return
         }
@@ -864,7 +882,8 @@ public final class FrameRouter {
             guard !dispatchedDoubleTapEventTs.contains(ts) else {
                 // Only a gesture actually held back leaves a line, so a tap reported as missing can be
                 // told apart from a replay being suppressed.
-                state.append(log: "Double-tap (strap time \(ts)) not dispatched: that event was already handled")
+                state.append(log: AppModel.stamped(
+                    "Double-tap (strap time \(ts)) not dispatched: that event was already handled"))
                 return
             }
             // Prune BEFORE appending, so the event just accepted is always the one kept.

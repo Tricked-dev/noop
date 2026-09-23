@@ -656,14 +656,14 @@ public enum SleepStager {
     /// `public` because the app target calls it: `Strand/Data/IntelligenceEngine.swift` is the day scan,
     /// and it lives outside this package. The spine and the anchor below it stay `internal` — the tests
     /// reach them with `@testable`, and nothing outside should be building its own spine.
-    public static func hrOnlySessions(hr: [HRSample], rr: [RRInterval], resp: [RespSample],
+    public static func hrOnlySessions(day: String, hr: [HRSample], rr: [RRInterval], resp: [RespSample],
                                       minMinutes: Int = minSleepMin,
                                       traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
         let hrS = hr.sorted { $0.ts < $1.ts }
         // ONE sort of the bpm axis, reused for the anchor and for the spread the trace reports.
         let sortedBpm = hrS.map { Double($0.bpm) }.sorted()
         guard let baseline = percentileOfSorted(sortedBpm, hrOnlyAnchorPercentile) else {
-            traceSink?(GateTrace.hrOnlyLine(anchorBpm: nil, bandBpm: nil, hrP50: nil, hrP90: nil,
+            traceSink?(GateTrace.hrOnlyLine(day: day, anchorBpm: nil, bandBpm: nil, hrP50: nil, hrP90: nil,
                                             epochs: 0, runs: 0,
                                             mergedRuns: 0, sleepRuns: 0, longestSleepMin: 0,
                                             staged: 0, kept: 0, minSleepMin: minMinutes))
@@ -702,6 +702,7 @@ public enum SleepStager {
                                     hrOnly: true))
         }
         traceSink?(GateTrace.hrOnlyLine(
+            day: day,
             anchorBpm: baseline,
             bandBpm: baseline * hrOnlyBandMult,
             // The wearer's own spread. An anchor alone cannot be judged: p10 of 60 means one thing when
@@ -2655,12 +2656,21 @@ public enum SleepStager {
         return .noRespFallbackBar                          // resp never measured and the no-resp bar unmet
     }
 
-    /// Read-only REM-funnel triage for ONE in-bed window [start, end] (#688). Re-runs the SAME Stage-0→3
-    /// staging seam `stageSession` uses (epoch grid → Cole–Kripke → features → classify → smooth →
-    /// re-impose), but instead of emitting a hypnogram it COUNTS where REM was lost. Changes NOTHING:
-    /// no label, no score, no session. Returns nil only when the window has too little gravity to grid
-    /// (mirroring `stageSession`'s degenerate fallback, which carries no REM to explain). The caller
-    /// logs `.summary`; tests assert the counts. Pure + deterministic. (#688)
+    /// Read-only REM-funnel triage for ONE in-bed window [start, end] (#688). Re-runs THIS type's
+    /// Stage-0→3 seam (epoch grid → Cole–Kripke → features → classify → smooth → re-impose), but
+    /// instead of emitting a hypnogram it COUNTS where REM was lost. Changes NOTHING: no label, no
+    /// score, no session. Returns nil only when the window has too little gravity to grid (mirroring
+    /// `stageSession`'s degenerate fallback, which carries no REM to explain). The caller logs
+    /// `.summary`; tests assert the counts. Pure + deterministic. (#688)
+    ///
+    /// WHICH HYPNOGRAM THIS EXPLAINS. V1's, always — this function is `SleepStager`'s own seam. It used
+    /// to say it explained "the SAME hypnogram" as the screen, and that has been false since V2 became
+    /// the default: the shipped hypnogram is staged by `SleepStagerV2` whenever
+    /// `experimentalSleepV2Enabled` says so, which is by default. On a 5/MG the two can be far apart,
+    /// because V1's primary REM gate needs the raw respiratory channel the hardware never emits while V2
+    /// recovers respiration regularity from R-R: one field pair reported ~46 min REM here against hours
+    /// on the screen for the same night (#2365). The caller's line names both stagers for that reason
+    /// (#2366); do not restore the claim that they are one.
     public static func remFunnelDiagnostic(start: Int, end: Int, grav: [GravitySample],
                                            hr: [HRSample], rr: [RRInterval],
                                            resp: [RespSample]) -> REMFunnelDiagnostic? {
