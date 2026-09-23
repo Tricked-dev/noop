@@ -5,6 +5,33 @@ final class HealthWritebackUnlockGateTests: XCTestCase {
     private let available = Notification.Name("HealthWritebackUnlockGateTests.available")
 
     @MainActor
+    func testLockedImportsRetainWidestWindowThroughCoalescing() {
+        let center = NotificationCenter()
+        let gate = HealthWritebackUnlockGate(center: center, availableNotification: available)
+        var window = HealthSyncRequestWindow()
+        var imported: [Int] = []
+        for days in [30, 7, 1] {
+            window.request(days: days)
+            XCTAssertTrue(gate.deferUntilAvailable(isAvailable: false) {
+                imported.append(window.take(covering: days))
+            })
+        }
+        center.post(name: available, object: nil)
+        center.post(name: available, object: nil)
+        XCTAssertEqual(imported, [30])
+        XCTAssertNil(window.days)
+    }
+
+    func testForegroundImportConsumesPendingWindowWithoutNarrowingIt() {
+        var window = HealthSyncRequestWindow()
+        window.request(days: 90)
+        window.request(days: 1)
+        XCTAssertEqual(window.take(covering: 7), 90)
+        XCTAssertNil(window.days)
+        XCTAssertEqual(window.take(covering: 30), 30)
+    }
+
+    @MainActor
     func testManyLockedRequestsRetryOnceWithLatestWork() {
         let center = NotificationCenter()
         let gate = HealthWritebackUnlockGate(center: center, availableNotification: available)

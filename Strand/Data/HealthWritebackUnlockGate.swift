@@ -1,5 +1,20 @@
 import Foundation
 
+/// Retains the widest import window while a Health pass is locked or already running.
+struct HealthSyncRequestWindow {
+    private(set) var days: Int?
+
+    mutating func request(days: Int) {
+        self.days = max(self.days ?? 0, max(1, days))
+    }
+
+    mutating func take(covering days: Int) -> Int {
+        let result = max(self.days ?? 0, max(1, days))
+        self.days = nil
+        return result
+    }
+}
+
 /// Coalesces locked-device write-back requests into one retry when protected data becomes available.
 /// The notification is supplied by the iOS bridge; keeping UIKit out allows the lifecycle to be tested
 /// without HealthKit, a phone, or an app service starting Bluetooth.
