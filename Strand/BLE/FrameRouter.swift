@@ -114,6 +114,7 @@ public final class FrameRouter {
             // BLE_REALTIME_HR_ON, so the UI can consume it even though persistence still ignores raw43.
             // live perf: skip the publish when HR is unchanged — the raw flood carries the same HR
             // byte across many frames, so an unguarded write re-renders the whole console for nothing.
+            if let hr = parsed.parsed["heart_rate"]?.intValue, hr >= 30, hr <= 220 { state.noteReadableHeartRate() }
             if let hr = parsed.parsed["heart_rate"]?.intValue, hr >= 30, hr <= 220, state.heartRate != hr {
                 state.heartRate = hr
                 // Sleep & Rest test mode (Group E): bank the live HR sample for the readout's HR-density
@@ -516,9 +517,9 @@ public final class FrameRouter {
                 // The other physical inputs the strap exposes — live only, as above. The double-tap
                 // was handled before the sync kick.
                 if ev.hasPrefix("WRIST_ON") {
-                    if !state.worn { state.worn = true; state.onWristChange?(true) }
+                    handleWrist(on: true, duringSync: false)
                 } else if ev.hasPrefix("WRIST_OFF") {
-                    if state.worn { state.worn = false; state.onWristChange?(false) }
+                    handleWrist(on: false, duringSync: false)
                 } else if ev.hasPrefix("STRAP_DRIVEN_ALARM_EXECUTED") {
                     // Fire observability (#401 close-out): Android has always logged this line
                     // (WhoopBleClient.handleFrame); iOS/macOS silently ran the callback, which is why a
@@ -794,6 +795,12 @@ public final class FrameRouter {
         rejectTally.absorbReassemblerDrops(monotonicTotal)
     }
 
+    /// The same fold for the reassembler's header-checksum drops, which are a DIFFERENT event: a floor
+    /// drop is a malformed frame, this is a read cursor that was not on a frame boundary at all.
+    func noteReassemblerHeaderDrops(_ monotonicTotal: Int) {
+        rejectTally.absorbReassemblerHeaderDrops(monotonicTotal)
+    }
+
     /// The one place the strap's own narration reaches the log, so the live and offload paths cannot
     /// drift in what they emit. Escape control bytes and retain fragment boundaries in Apple logs.
     private func appendStrapConsole(_ parsed: ParsedFrame) {
@@ -830,10 +837,24 @@ public final class FrameRouter {
         if ev.hasPrefix("DOUBLE_TAP") {
             dispatchDoubleTapOnce(eventTimestamp: ts)
         } else if ev.hasPrefix("WRIST_ON") {
-            if !state.worn { state.worn = true; state.onWristChange?(true) }
+            handleWrist(on: true, duringSync: true)
         } else if ev.hasPrefix("WRIST_OFF") {
-            if state.worn { state.worn = false; state.onWristChange?(false) }
+            handleWrist(on: false, duringSync: true)
         }
+    }
+
+    /// A live WRIST_ON / WRIST_OFF, from either route. Each one leaves a line, always on: whether a strap sends them
+    /// live decides how soon the Live HR banner can show the dash — a WHOOP 5.0 does, about two seconds after it
+    /// leaves the wrist (a tester's log, 24 Sep 2026, read from the silence that followed, since nothing named them).
+    private func handleWrist(on: Bool, duringSync: Bool) {
+        let changes = state.worn != on
+        state.append(log: AppModel.stamped("Strap: \(on ? "WRIST_ON" : "WRIST_OFF")"
+                                           + (duringSync ? " during a sync" : "")
+                                           + (changes && !on ? "; live heart rate cleared" : "")))
+        guard changes else { return }
+        state.worn = on
+        if !on { state.clearLiveHeartRate() }   // nothing shown may outlive the strap leaving the wrist
+        state.onWristChange?(on)
     }
 
     // MARK: - Double-tap de-duplication

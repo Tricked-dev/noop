@@ -40,6 +40,22 @@ final class ChannelReassemblerTests: XCTestCase {
         }
     }
 
+    func testHeaderChecksumDropsAggregateAcrossChannelsWithoutDoubleCounting() {
+        for family in [DeviceFamily.whoop4, .whoop5] {
+            let r = ChannelReassembler<String>(family: family)
+            let valid = frame([1, 2, 3], family: family)
+            var invalid = valid
+            invalid[family == .whoop4 ? 3 : 6] ^= 0xFF
+            XCTAssertEqual(r.feed(invalid + valid, channel: "history"), [valid])
+            XCTAssertEqual(r.headerChecksumDrops, 1)
+            XCTAssertEqual(r.feed(invalid + valid, channel: "events"), [valid])
+            XCTAssertEqual(r.headerChecksumDrops, 2)
+            XCTAssertEqual(r.feed(valid, channel: "history"), [valid])
+            XCTAssertEqual(r.headerChecksumDrops, 2)
+            XCTAssertEqual(r.belowMinimumLengthDrops, 0)
+        }
+    }
+
     func testOneBrokenChannelCannotBlockAnotherAndDropCountIsAggregated() {
         let r = ChannelReassembler<String>()
         let valid = frame([9, 8, 7], family: .whoop4)

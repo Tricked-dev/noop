@@ -6,6 +6,7 @@ public final class ChannelReassembler<Channel: Hashable> {
     private let family: DeviceFamily
     private var channels: [Channel: Reassembler] = [:]
     public private(set) var belowMinimumLengthDrops = 0
+    public private(set) var headerChecksumDrops = 0
 
     public init(family: DeviceFamily = .whoop4) { self.family = family }
 
@@ -18,8 +19,10 @@ public final class ChannelReassembler<Channel: Hashable> {
             channels[channel] = parser
         }
         let previousDrops = parser.belowMinimumLengthDrops
+        let previousHeaderDrops = parser.headerChecksumDrops
         let frames = parser.feed(fragment)
         belowMinimumLengthDrops += parser.belowMinimumLengthDrops - previousDrops
+        headerChecksumDrops += parser.headerChecksumDrops - previousHeaderDrops
         return frames
     }
 }
