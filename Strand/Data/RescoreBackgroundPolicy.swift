@@ -26,6 +26,16 @@ import Foundation
 /// This changes only WHERE the work runs and how often a doomed attempt is paid for. Making the pass itself
 /// cheap across a process restart is the other half of #1538 and is not attempted here.
 enum RescoreBackgroundPolicy {
+    enum ResumeDecision: Equatable { case idle, waitForHistory, run }
+
+    /// A foreground history request owns the next scoring opportunity while it is in flight.
+    /// Processing-task callers may still settle debt without waiting for a radio connection.
+    static func resumeDecision(isOwed: Bool, passInProgress: Bool,
+                               waitForHistory: Bool, isBackfilling: Bool) -> ResumeDecision {
+        guard isOwed, !passInProgress else { return .idle }
+        return waitForHistory && isBackfilling ? .waitForHistory : .run
+    }
+
 
     /// What a background-initiated re-score should do.
     enum Decision: Equatable {

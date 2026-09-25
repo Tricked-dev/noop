@@ -70,6 +70,43 @@ final class RescoreBackgroundSchedulerTests: XCTestCase {
         XCTAssertFalse(RescoreCancellation().isCancelled)
     }
 
+    func testForegroundResumeWaitsForHistoryWithoutLosingDebt() {
+        let token = RescoreBackgroundScheduler.markRescoreOwed(passStarting: true, maxDays: 90)
+        func decision(backfilling: Bool, computing: Bool = false, foreground: Bool = true) -> RescoreBackgroundPolicy.ResumeDecision {
+            RescoreBackgroundPolicy.resumeDecision(isOwed: RescoreBackgroundScheduler.isRescoreOwed,
+                passInProgress: computing, waitForHistory: foreground, isBackfilling: backfilling)
+        }
+        XCTAssertEqual(decision(backfilling: true), .waitForHistory)
+        XCTAssertEqual(RescoreBackgroundScheduler.currentOwedToken, token)
+        XCTAssertEqual(RescoreBackgroundScheduler.owedWindowDays, 90)
+        // Completion, timeout, or disconnect all release the wait. A restarted slice waits again.
+        XCTAssertEqual(decision(backfilling: false), .run)
+        XCTAssertEqual(decision(backfilling: true), .waitForHistory)
+        XCTAssertEqual(decision(backfilling: false, computing: true), .idle)
+        XCTAssertEqual(decision(backfilling: true, foreground: false), .run)
+        RescoreBackgroundScheduler.markRescoreCompleted(seconds: 1, owedToken: token)
+        XCTAssertEqual(decision(backfilling: false), .idle)
+    }
+
+    func testStartupTickWaitsForHistoryAndPreservesExistingDebt() async {
+        var ran = false
+        var lines: [String] = []
+        await RescoreBackgroundScheduler.run(isBackground: false, owesOnDefer: false,
+            historyInFlight: true, log: { lines.append($0) }) { ran = true }
+        XCTAssertFalse(ran)
+        XCTAssertFalse(RescoreBackgroundScheduler.isRescoreOwed)
+        let token = RescoreBackgroundScheduler.markRescoreOwed(maxDays: 90)
+        await RescoreBackgroundScheduler.run(isBackground: false, owesOnDefer: false,
+            historyInFlight: true, log: { lines.append($0) }) { ran = true }
+        XCTAssertFalse(ran)
+        XCTAssertEqual(RescoreBackgroundScheduler.currentOwedToken, token)
+        XCTAssertEqual(RescoreBackgroundScheduler.owedWindowDays, 90)
+        await RescoreBackgroundScheduler.run(isBackground: false, historyInFlight: false,
+            log: { lines.append($0) }) { ran = true }
+        XCTAssertTrue(ran)
+        XCTAssertTrue(lines.contains { $0.contains("waiting for history") })
+    }
+
     private var savedWindow: Any?
     private var savedOwed: Any?
     private var savedSeconds: Any?

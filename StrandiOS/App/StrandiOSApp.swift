@@ -340,6 +340,8 @@ struct StrandiOSApp: App {
                             "connected": model.live.connected,
                             "historyReady": model.live.historyReady,
                             "backfilling": model.live.backfilling,
+                            "scoring": model.intelligence.computing,
+                            "rescoreOwed": RescoreBackgroundScheduler.isRescoreOwed,
                             "liveFeedActive": model.live.liveFeedActive,
                             "batteryProbeVisible": model.live.extendedBatteryProbe != nil,
                             "lastSyncedAt": model.live.lastSyncedAt ?? 0,
@@ -434,8 +436,9 @@ struct StrandiOSApp: App {
                 // sync, the widget snapshot and the watch push. Awaiting it there would leave the widget
                 // and the watch showing stale numbers for the entire re-score every time the app is
                 // opened, which is a worse regression than the bug being fixed. `analyzeRecent`
-                // serialises itself, so overlapping with the sync this foreground also kicks off is safe.
-                Task { await model.runDeferredRescoreIfOwed() }
+                // serialises itself. If history is arriving, its terminal edge resumes this debt
+                // with the newly banked inputs instead of scoring a partial night first.
+                Task { await model.runDeferredRescoreIfOwed(waitForHistory: true) }
                 Task {
                     health.refreshAuthIfPreviouslyGranted()
                     HealthWritebackBackgroundScheduler.updateSchedule(

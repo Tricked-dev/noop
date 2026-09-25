@@ -3,6 +3,41 @@ import WhoopProtocol
 @testable import Strand
 
 final class DeviceLogDiagnosticsTests: XCTestCase {
+    func testRepeatedSyncDeferralsAreCoalescedWithoutHidingOtherReasons() {
+        var gate = SyncDeferralLogGate()
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .strap, reason: "recent-sync cooldown", now: 100), 0)
+        XCTAssertNil(gate.suppressedCountToEmit(trigger: .strap, reason: "recent-sync cooldown", now: 101))
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .foreground, reason: "recent-sync cooldown", now: 102), 0)
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .strap, reason: "stalled-transfer cooldown", now: 103), 0)
+        XCTAssertNil(gate.suppressedCountToEmit(trigger: .strap, reason: "recent-sync cooldown", now: 159))
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .strap, reason: "recent-sync cooldown", now: 160), 2)
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .strap, reason: "recent-sync cooldown", now: 220), 0)
+    }
+
+    func testDeferralLogClockResetDoesNotSilenceFutureEvents() {
+        var gate = SyncDeferralLogGate()
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .strap, reason: "cooldown", now: 100), 0)
+        XCTAssertNil(gate.suppressedCountToEmit(trigger: .strap, reason: "cooldown", now: 101))
+        XCTAssertEqual(gate.suppressedCountToEmit(trigger: .strap, reason: "cooldown", now: 10), 1)
+    }
+
+    func testSleepEvidenceSeparatesInputCutoffFromDetectedEnd() {
+        let line = DeviceLogDiagnostics.sleepBoundaryLine(day: "2025-01-02", readEnd: 9000,
+            hrCount: 300, hrLast: 7200, motionCount: 250, motionLast: 7100,
+            sessions: [(3600, 6900)])
+        XCTAssertEqual(line, "sleep-boundary day=2025-01-02 readEnd=9000 hr=300 hrLast=7200 motion=250 motionLast=7100 sessions=1 bounds=[3600:6900] truncated=false")
+        let missing = DeviceLogDiagnostics.sleepBoundaryLine(day: "2025-01-02", readEnd: 9000,
+            hrCount: 0, hrLast: nil, motionCount: 0, motionLast: nil, sessions: [])
+        XCTAssertTrue(missing.contains("hrLast=none"))
+        XCTAssertTrue(missing.contains("motionLast=none sessions=0 bounds=[]"))
+        let many = DeviceLogDiagnostics.sleepBoundaryLine(day: "2025-01-02", readEnd: 9000,
+            hrCount: 300, hrLast: 7200, motionCount: 250, motionLast: 7100,
+            sessions: (0..<100).map { ($0, $0 + 1) })
+        XCTAssertTrue(many.contains("sessions=100"))
+        XCTAssertTrue(many.hasSuffix("truncated=true"))
+        XCTAssertLessThan(many.count, 300)
+    }
+
     func testConsoleControlsCannotSplitLinesOrMakeTheArchiveBinary() {
         XCTAssertEqual(DeviceLogDiagnostics.consoleFragment("a\0b\n\r\t\\n\u{85}"),
                        "a\\u{0000}b\\n\\r\\t\\\\n\\u{0085}")

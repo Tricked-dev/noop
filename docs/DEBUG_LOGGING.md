@@ -52,11 +52,25 @@ These Apple changes also work after the temporary capture expires:
   usable HR/motion separately. Raw archival and persist-before-ACK rules are unchanged.
 - Console fragments escape control characters, remain separate, and mark truncation.
   Escaping uses bounded input and the existing append, adding no extra file write.
-- Sync deferrals report the cooldown that actually blocked the request. Connection
-  epitaphs retain error, link duration, inbound traffic, and available signal evidence;
+- Sync deferrals report the cooldown that actually blocked the request. On iOS,
+  repeats for each trigger/reason are emitted at most once per minute with a suppressed
+  count; distinct reasons remain visible. This adds no timer or sync scheduling change.
+  Connection epitaphs retain error, link duration, inbound traffic, and available signal evidence;
   timeout/encryption messages alone do not establish a radio or firmware cause.
 
 Regression checks: `DeviceLogDiagnosticsTests`, `OvernightDiagnosticsTests`,
 `BackfillPolicyTests`, and `RescoreBackgroundSchedulerTests`. Build both Apple app
 schemes. Physical background/foreground and expiry testing remains necessary for
 battery and recovery claims; deterministic tests do not measure battery savings.
+
+Sleep scoring records input row counts and latest HR/motion timestamps beside the
+read-window end and detected session bounds. These bounded summaries are emitted
+before cancellation is handled, and the sleep-store upsert logs success or failure
+separately. Scan output is not proof of persisted sleep or physiological wake time.
+The summaries also use the ordinary persistent strap archive after the temporary
+capture expires. They add one short log line per scanned day and no sensor reads.
+
+Foreground recovery and the startup/idle backstop wait for an ongoing history
+transfer before scoring. A terminal transfer edge resumes it while foregrounded, including a
+timeout or disconnect; background processing and post-offload recovery retain their
+existing scheduling policy. No background completion deadline is guaranteed.

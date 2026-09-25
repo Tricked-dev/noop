@@ -223,6 +223,8 @@ final class IntelligenceEngine: ObservableObject {
         let rhrBinLine: String?
         /// #1331 respiratory diagnostic line (see `respRateLogLine`); replayed with `rhrLine`.
         let respLine: String?
+        /// Input frontiers and detected bounds, retained with cached scans for attribution.
+        let sleepBoundaryLine: String?
         /// CAPTURE-B (#814/#799): the resolved READ owner id this day was scored from, and how many HR rows
         /// that owner returned for the night window, carried out of the off-actor loop so the main-actor
         /// fold can emit the universal `dayOwner …` self-diagnostic line (it needs the registry active id +
@@ -814,10 +816,11 @@ final class IntelligenceEngine: ObservableObject {
         #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
         // DIAGNOSTIC BATTERY COST: phase timestamps and bounded local journal writes per analysis.
         var performanceTrace = OvernightDiagnostics.isActive ? DiagnosticStageTrace() : nil
+        var performanceScanReturned = false
         OvernightDiagnostics.record("analysis-phase begin days=\(maxDays) background=\(RescoreBackgroundScheduler.isBackgrounded)")
         defer {
             if var trace = performanceTrace {
-                trace.mark("score-and-persist")
+                trace.mark(performanceScanReturned ? "score-and-persist" : "prepare-and-scan")
                 OvernightDiagnostics.finishSpan("analysis", trace: trace, outcome: interrupted ? "cancelled" : "returned")
                 OvernightDiagnostics.performanceSnapshot(reason: "analysis-returned")
             }
@@ -1807,6 +1810,10 @@ final class IntelligenceEngine: ObservableObject {
                     AnalyticsEngine.primarySessionRestingHRWithCoverage(sessions: res.sleepSessions, hr: hr)
                 let scan = DayScan(result: res, rhrLine: rhrLine, rhrBinLine: rhrBinLine,
                                    respLine: respLine,
+                                   sleepBoundaryLine: DeviceLogDiagnostics.sleepBoundaryLine(
+                                       day: day, readEnd: to, hrCount: hr.count, hrLast: hr.last?.ts,
+                                       motionCount: grav.count, motionLast: grav.last?.ts,
+                                       sessions: res.cachedSleep.map { ($0.startTs, $0.endTs) }),
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: Self.mergedDayDiag(hrvDiag, strainDiagLines),
@@ -1881,12 +1888,20 @@ final class IntelligenceEngine: ObservableObject {
             cancellation.cancel()
             scanTask.cancel()
         }
+        #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
+        performanceTrace?.mark("prepare-and-scan")
+        performanceScanReturned = true
+        #endif
+        // Persist the input/result evidence even if cancellation prevents publishing this pass.
+        // DIAGNOSTIC BATTERY COST: one bounded summary per scanned day, no extra sensor reads.
+        for scan in scanned {
+            if let line = scan.sleepBoundaryLine { diagnosticSink?(line + " phase=scan-output", nil) }
+        }
         // Never treat a partial scan as completed, publish it, or advance its watermark.
         if stopIfCancelled("scan") { return }
         // #1005: write the loop's updated reuse cache back to the (main-actor) stored property. The pass ran
         // to completion above (`.value` awaited), so there is no concurrent access.
         #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-        performanceTrace?.mark("prepare-and-scan")
         OvernightDiagnostics.record("analysis-phase scan-returned background=\(RescoreBackgroundScheduler.isBackgrounded) expiryDelta=\(RescoreBackgroundScheduler.assertionExpiries - reScoreExpiriesAtStart)")
         #endif
         dayScanCache = updatedDayScanCache
@@ -2887,7 +2902,16 @@ final class IntelligenceEngine: ObservableObject {
         let cachedSleepKept = cachedSleep.filter { s in
             !skipWindows.contains { s.startTs < $0.end && $0.start < s.endTs }   // time-overlap test
         }
-        if !cachedSleepKept.isEmpty { _ = try? await store.upsertSleepSessions(cachedSleepKept, deviceId: computedId) }
+        if !cachedSleepKept.isEmpty {
+            do {
+                _ = try await store.upsertSleepSessions(cachedSleepKept, deviceId: computedId)
+                diagnosticSink?("sleep-store upsert completed candidates=\(cachedSleepKept.count) "
+                    + "latestEnd=\(cachedSleepKept.map(\.endTs).max() ?? 0)", nil)
+            } catch {
+                diagnosticSink?("sleep-store upsert failed domain=\((error as NSError).domain) "
+                    + "code=\((error as NSError).code)", nil)
+            }
+        }
         // ── Persist per-epoch motion (H8) beside each kept session's stagesJSON ──────────────────────────
         // The sleepSession rows exist now (just upserted), so the targeted motion UPDATE lands. Persist ONLY
         // for the sessions actually kept (not edited/dismissed), keyed by the detected start `analyzeDay`

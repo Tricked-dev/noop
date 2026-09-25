@@ -1313,6 +1313,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// pick so restoration/reconnect after a relaunch target the right strap.
     private var selectedModel: WhoopModel = .persisted
     private var lastStandardHRLogAt: Date?
+    private var syncDeferralLogGate = SyncDeferralLogGate()
 
     /// True when the selected/connected strap is a WHOOP 5/MG. Read-only window onto the private
     /// `selectedModel` so a view can tell whether the firmware-alarm path is the experimental 5/MG one
@@ -5033,11 +5034,18 @@ public final class BLEManager: NSObject, ObservableObject {
         if let reason = BackfillPolicy.phoneDeferralReason(trigger: trigger, now: now, lastAttempt: last,
                                          lastCompleted: state.lastSyncedAt,
                                          retryAfter: UserDefaults.standard.object(forKey: retryKey) as? Double) {
-            log("Backfill: \(trigger) deferred — \(reason); Sync now is available.")
+            if let suppressed = syncDeferralLogGate.suppressedCountToEmit(
+                trigger: trigger, reason: reason, now: ProcessInfo.processInfo.systemUptime) {
+                log("Backfill: \(trigger) deferred — \(reason); Sync now is available. suppressed=\(suppressed)")
+            }
             return
         }
         guard BackfillPolicy.userPauseAllows(trigger: trigger, now: now, pausedUntil: userPausedUntil) else {
-            log("Backfill: \(trigger) deferred — automatic sync is paused by the user.")
+            let reason = "automatic sync is paused by the user"
+            if let suppressed = syncDeferralLogGate.suppressedCountToEmit(
+                trigger: trigger, reason: reason, now: ProcessInfo.processInfo.systemUptime) {
+                log("Backfill: \(trigger) deferred — \(reason). suppressed=\(suppressed)")
+            }
             return
         }
         #else

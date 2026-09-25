@@ -2,6 +2,16 @@ import Foundation
 import WhoopProtocol
 
 enum DeviceLogDiagnostics {
+    /// A data frontier is not a wake time. Emit both so a partial sync is identifiable.
+    static func sleepBoundaryLine(day: String, readEnd: Int, hrCount: Int, hrLast: Int?,
+                                  motionCount: Int, motionLast: Int?,
+                                  sessions: [(start: Int, end: Int)]) -> String {
+        let bounds = sessions.prefix(8).map { "\($0.start):\($0.end)" }.joined(separator: ",")
+        return "sleep-boundary day=\(day) readEnd=\(readEnd) hr=\(hrCount) hrLast=\(hrLast.map(String.init) ?? "none") "
+            + "motion=\(motionCount) motionLast=\(motionLast.map(String.init) ?? "none") "
+            + "sessions=\(sessions.count) bounds=[\(bounds)] truncated=\(sessions.count > 8)"
+    }
+
     // Each notification remains one fragment. Never invent text across missing notifications.
     // DIAGNOSTIC BATTERY COST: bounded escaping per existing console append; no extra writes.
     static func consoleFragment(_ text: String) -> String {
@@ -30,5 +40,29 @@ enum DeviceLogDiagnostics {
             return "no-usable-hr-or-motion"
         }
         return "other-rejection"
+    }
+}
+
+/// Coalesces repeated deferrals per trigger/reason without changing sync eligibility.
+/// Callers supply only the fixed sync-policy reasons; no sensor or packet data is retained.
+struct SyncDeferralLogGate {
+    private struct Entry {
+        var emittedAt: TimeInterval
+        var suppressed: Int
+    }
+    private var entries: [String: Entry] = [:]
+
+    /// Nil suppresses a repeat; a value emits the number skipped since the previous line.
+    mutating func suppressedCountToEmit(trigger: BackfillTrigger, reason: String,
+                                       now: TimeInterval) -> Int? {
+        let key = "\(trigger):\(reason)"
+        if var entry = entries[key], now >= entry.emittedAt, now - entry.emittedAt < 60 {
+            entry.suppressed += 1
+            entries[key] = entry
+            return nil
+        }
+        let suppressed = entries[key]?.suppressed ?? 0
+        entries[key] = Entry(emittedAt: now, suppressed: 0)
+        return suppressed
     }
 }

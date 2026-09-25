@@ -201,10 +201,18 @@ enum RescoreBackgroundScheduler {
     ///   `RescoreBackgroundPolicy.decide`.
     static func run(isBackground: Bool? = nil,
                     owesOnDefer: Bool = true,
+                    historyInFlight: Bool = false,
                     passInProgress: Bool = false,
                     lowPowerMode: Bool? = nil,
                     log: @escaping (String) -> Void,
                     work: () async -> Void) async {
+        // The startup/backstop tick must not race the history transfer it is meant to score.
+        // The coalesced terminal event owns the next attempt; preserve any pre-existing debt.
+        if historyInFlight {
+            if owesOnDefer { markRescoreOwed() }
+            log("re-score: waiting for history; transfer completion will retry; owed=\(isRescoreOwed)")
+            return
+        }
         let decision = RescoreBackgroundPolicy.decide(
             isBackground: isBackground ?? isBackgrounded,
             isRealUpdate: owesOnDefer,

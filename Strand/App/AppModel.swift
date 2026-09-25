@@ -271,7 +271,7 @@ final class AppModel: ObservableObject {
         self.intelligence.diagnosticSink = { [live] line, domain in
             live.append(log: line, domain: domain)
             #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
-            if line.hasPrefix("re-score:") { OvernightDiagnostics.record(line) }
+            if line.hasPrefix("re-score:") || line.hasPrefix("sleep-boundary ") { OvernightDiagnostics.record(line) }
             #endif
         }
         // Workouts & GPS test mode (Test Centre): wire the Repository (auto-detect inputs/why + cross-source
@@ -420,13 +420,31 @@ final class AppModel: ObservableObject {
         // trailing edge, so the dashboard still refreshes with the newly-synced data , freshness is kept,
         // we just stop re-doing it dozens of times mid-download. removeDuplicates() still drops a slice that
         // stamped an identical second; the trailing refresh after a real change is never dropped.
-        live.$lastSyncedAt
+        let historyUpdates = live.$lastSyncedAt
             .dropFirst()
             .compactMap { $0 }
             .removeDuplicates()
+            .map { _ in () }
+            .eraseToAnyPublisher()
+        #if os(iOS)
+        // A terminal edge also covers timeout/disconnect, which need not publish lastSyncedAt.
+        // Merge BEFORE debouncing so a successful transfer produces one refresh, and a new
+        // transfer slice resets the quiet window rather than starting another scoring pass.
+        let historyEvents = historyUpdates.merge(with: live.$backfilling
+            .removeDuplicates().dropFirst().map { _ in () }).eraseToAnyPublisher()
+        #else
+        let historyEvents = historyUpdates
+        #endif
+        historyEvents
             .debounce(for: .seconds(2), scheduler: DispatchQueue.main)
             .sink { [weak self] _ in
-                Task { [weak self] in await self?.refreshAfterCompletedBackfill() }
+                Task { [weak self] in
+                    guard let self else { return }
+                    #if os(iOS)
+                    guard !self.live.backfilling else { return }
+                    #endif
+                    await self.refreshAfterCompletedBackfill()
+                }
             }
             .store(in: &hrCancellables)
 
@@ -541,6 +559,7 @@ final class AppModel: ObservableObject {
                 // requires explicit `self`, so the bare-name capture shorthand used elsewhere in this
                 // type would not resolve here.
                 await RescoreBackgroundScheduler.run(owesOnDefer: false,
+                                                     historyInFlight: self.live.backfilling,
                                                      log: { [live = self.live] line in
                                                          live.append(log: line)
                                                      }) {
@@ -729,10 +748,18 @@ final class AppModel: ObservableObject {
     /// Forced rather than `skipIfUnchanged`: an interrupted pass never advanced the watermark — by design,
     /// so that it cannot mark unscored data as scored — so gating on the fingerprint here would be asking
     /// a question whose answer is already known to be "yes, there is work".
-    func runDeferredRescoreIfOwed() async {
+    func runDeferredRescoreIfOwed(waitForHistory: Bool = false) async {
         // A pass already running here holds the owed mark itself and settles it when it finishes; forcing
         // another would only queue a second full pass behind it.
-        guard RescoreBackgroundScheduler.isRescoreOwed, !intelligence.computing else { return }
+        switch RescoreBackgroundPolicy.resumeDecision(
+            isOwed: RescoreBackgroundScheduler.isRescoreOwed, passInProgress: intelligence.computing,
+            waitForHistory: waitForHistory, isBackfilling: live.backfilling) {
+        case .idle: return
+        case .waitForHistory:
+            live.append(log: "re-score: foreground resume waiting for history; work remains owed")
+            return
+        case .run: break
+        }
         // #2238: force only when the debt is UNPROVEN — an interrupted pass, whose watermark was
         // deliberately never advanced. A pass that COMPLETED and was merely outvoted by a token recorded
         // mid-pass did advance it, so asking the fingerprint is a real question with a real answer, and a
