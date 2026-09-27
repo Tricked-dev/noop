@@ -235,6 +235,11 @@ extension WhoopStore {
                     AND ((:source = 5 AND (srcChannel IS NULL OR srcChannel IN (6, 7)))
                       OR (:source = 7 AND (srcChannel IS NULL OR srcChannel = 6)))
                     """)
+                let promoteWhoop4History = try db.cachedStatement(sql: """
+                    UPDATE rrInterval SET srcChannel = :source, ord = :ord
+                    WHERE deviceId = :device AND ts = :ts AND rrMs = :rr AND seq = :seq
+                    AND :source = 8 AND srcChannel IS NULL
+                    """)
                 var seqByTsRr: [RRBatchSecond: [Int: Int]] = [:]
                 var ordByTs: [RRBatchSecond: Int] = [:]
                 for r in streams.rr {
@@ -256,6 +261,13 @@ extension WhoopStore {
                         // observation supplies its order; values/keys and Oura labels remain intact.
                         // Cache fingerprints witness both canonical-source counts independently of inserts.
                         try promote.execute(arguments: ["source": source.rawValue, "ord": ord,
+                            "device": deviceId, "ts": r.ts, "rr": r.rrMs, "seq": seq])
+                    }
+                    // The label is the CASE just matched, so name it rather than force-unwrapping the
+                    // optional the match already proved non-nil.
+                    if inserted == 0, r.srcChannel == .whoop4Historical {
+                        try promoteWhoop4History.execute(arguments: [
+                            "source": RRSourceChannel.whoop4Historical.rawValue, "ord": ord,
                             "device": deviceId, "ts": r.ts, "rr": r.rrMs, "seq": seq])
                     }
                 }

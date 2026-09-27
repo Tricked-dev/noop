@@ -89,6 +89,11 @@ struct StrandiOSApp: App {
         NotificationPresenter.shared.onCoachBriefTapped = { [weak router] in router?.openCoach() }
         let model = AppModel()
         _model = StateObject(wrappedValue: model)
+        CoachBriefScheduler.register(generateBrief: { [weak coach = model.coach] in
+            await coach?.generateBrief()
+        }, log: { [weak model] line in
+            model?.live.append(log: AppModel.stamped(line))
+        })
         // Settings → "Keep screen on while syncing". Wired once here, not as another modifier on `body`.
         SyncKeepAwake.shared.attach(to: model.live)
         // The strap-sync Live Activity (Lock Screen + Dynamic Island). Same placement, same reason — and
@@ -121,8 +126,10 @@ struct StrandiOSApp: App {
         _liveActivity = State(initialValue: liveActivity)
         // A gym session keeps ONE banner on the Lock Screen, its own — as the live-HR banner already
         // stands aside for it. A sync started in the foreground mid-session starts no sync banner.
+        // Held back only for a gym banner that will actually show: with its switch off, a session leaves the
+        // Lock Screen to the sync, rather than to nothing.
         SyncLiveActivityController.shared.holdsBackNewBanner = { [weak liftSession] in
-            liftSession?.isActive == true
+            liftSession?.isActive == true && UnitPrefs.liftLiveActivityEnabled()
         }
         // Before any view or publisher exists: the first push to the Lock Screen banner must find the
         // session already running, or it ends the banner iOS kept alive across the restart.
@@ -390,12 +397,13 @@ struct StrandiOSApp: App {
         // access (it only reads write/share status, never prompts) so background syncs resume; and
         // HealthKitBridge.sync guards on `auth == .authorized`, so the scenePhase trigger stays a
         // safe no-op until the user opts in.
-        .onChange(of: scenePhase) { _, phase in
+        .onChange(of: scenePhase, initial: true) { _, phase in
             #if NOOP_SYNC_DIAGNOSTICS
             model.ble.recordOvernightStatus(reason: "scene-" + String(describing: phase))
             #endif
             if phase == .active {
                 model.setAppBackgrounded(false)
+                CoachBriefScheduler.activateIfEnabled { await model.coach.generateBrief() }
                 model.drainPendingIntents(router: router)
                 // iOS starts a Lift Log banner only for an app on screen, so a banner lost while NOOP was in
                 // the background comes back now, whether or not the strap is sending anything.

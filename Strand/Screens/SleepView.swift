@@ -28,6 +28,7 @@ import UIKit
 
 struct SleepView: View {
     @EnvironmentObject var repo: Repository
+    @EnvironmentObject private var router: NavRouter
     // NOTE: SleepView itself deliberately does NOT observe `LiveState` OR `AppModel`. A connected strap
     // publishes at ~1 Hz, and `AppModel` itself publishes `bpm` at that same ~1 Hz (AppModel.swift:202) —
     // `@EnvironmentObject` subscribes to the WHOLE object's `objectWillChange` regardless of which
@@ -171,6 +172,7 @@ struct SleepView: View {
                             .padding(.horizontal, -16)
                             .padding(.top, -24)
                             .staggeredAppear(index: 0)
+                        alarmsEntry
                         // #sleep-layout: the analytical cards render in the user's saved order minus the
                         // hidden set, below the pinned Rest hero. Reordered via the Arrange sheet.
                         ForEach(Array(sleepVisibleSections.enumerated()), id: \.element) { idx, section in
@@ -179,6 +181,7 @@ struct SleepView: View {
                     }
                 } else {
                     emptyState
+                    alarmsEntry
                 }
             }
             // LiquidScoreGauge owns its own count-up animation (same as Home heroes).
@@ -280,6 +283,34 @@ struct SleepView: View {
                 }
             }
         }
+    }
+
+    /// A direct route to the one alarm screen, available even before a night is recorded.
+    private var alarmsEntry: some View {
+        // Button OUTSIDE the card, as `InsightsView.whatMovesYouLink` and `LabBookView` do: with it inside,
+        // only the row content answers a tap and the card's own padding is dead, so the same edge tap works
+        // on Android (where the whole `NoopCard` is clickable) and does nothing here.
+        Button { router.openAlarms() } label: {
+            NoopCard(tint: StrandPalette.restColor) {
+                HStack(spacing: NoopMetrics.gap) {
+                    Image(systemName: "alarm.fill")
+                        .foregroundStyle(StrandPalette.restColor)
+                        .accessibilityHidden(true)
+                    Text("Alarms")
+                        .font(StrandFont.headline)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        // The settle-inward every tappable liquid card gets (`InsightsView.whatMovesYouLink`,
+        // `LabBookView`, `TodayView`). `.plain` would leave an edge tap with no feedback at all, where
+        // Android's `Modifier.clickable` ripples.
+        .buttonStyle(LiquidPressStyle())
     }
 
     // MARK: - 0. REST HERO — scenic backdrop + sleep-performance gauge (Bevel)

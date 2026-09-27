@@ -119,8 +119,19 @@ class Whoop5RRSqliteTest {
                         .use { it.executeUpdate() }
                     Unit
                 }
-                "rrIntervals", "whoop5RrIntervals" -> query(
-                    if (method.name == "whoop5RrIntervals") WHOOP5_RR_INTERVALS_SQL else RR_INTERVALS_SQL,
+                "promoteWhoop4HistoricalRr" -> {
+                    statement(PROMOTE_WHOOP4_HISTORY_SQL,
+                        listOf("deviceId", "ts", "rrMs", "seq", "ord").zip(args.take(5)).toMap())
+                        .use { it.executeUpdate() }
+                    Unit
+                }
+                "rrIntervals", "whoop5RrIntervals", "rawRrIntervals", "whoop4RrIntervals" -> query(
+                    when (method.name) {
+                        "whoop5RrIntervals" -> WHOOP5_RR_INTERVALS_SQL
+                        "rawRrIntervals" -> RAW_RR_INTERVALS_SQL
+                        "whoop4RrIntervals" -> WHOOP4_RR_INTERVALS_SQL
+                        else -> RR_INTERVALS_SQL
+                    },
                     listOf("deviceId", "from", "to", "limit").zip(args.take(4)).toMap(),
                 ) { r ->
                     fun optional(column: String) = r.getInt(column).let { if (r.wasNull()) null else it }
@@ -130,6 +141,9 @@ class Whoop5RRSqliteTest {
                 "hasWhoop5RrSource" -> query(HAS_WHOOP5_RR_SOURCE_SQL, mapOf("deviceId" to args[0])) {
                     it.getBoolean(1)
                 }.single()
+                "hasWhoop4HistoricalRrSource" -> query(
+                    "SELECT EXISTS(SELECT 1 FROM rrInterval WHERE deviceId = ? AND srcChannel = 8)",
+                    mapOf("deviceId" to args[0])) { it.getBoolean(1) }.single()
                 "legacyWhoop5RrWithheld" -> query(LEGACY_WHOOP5_RR_WITHHELD_SQL,
                     listOf("deviceId", "from", "to").zip(args.take(3)).toMap()) {
                     it.getBoolean(1)
@@ -157,6 +171,28 @@ class Whoop5RRSqliteTest {
             }
         })
         registry("5.0 MG")
+    }
+
+    @Test fun whoop4PartialHistoryKeepsUnlabelledRowsFromOtherHours() {
+        val base = 1_750_000_000L / 3600 * 3600
+        fun insert(ts: Long, rr: Int, channel: Int?) {
+            statement("INSERT INTO rrInterval(deviceId,ts,rrMs,seq,synced,ord,srcChannel,tsSuspect) " +
+                "VALUES(:d,:t,:r,0,0,0,:c,NULL)",
+                mapOf("d" to id, "t" to ts, "r" to rr, "c" to channel)).use { it.executeUpdate() }
+        }
+        insert(base + 10, 800, null)
+        insert(base + 3600 + 10, 820, null)
+        insert(base + 3600 + 11, 830, null)
+        insert(base + 3600 + 12, 840, null)
+        insert(base + 10, 805, 8)
+        insert(base + 11, 815, 8)
+        insert(base + 3600 + 10, 825, 8)
+
+        val selected = query(
+            WHOOP4_RR_INTERVALS_SQL,
+            mapOf("deviceId" to id, "from" to base, "to" to base + 7200, "limit" to 100),
+        ) { it.getInt("rrMs") to it.getInt("srcChannel") }
+        assertEquals(listOf(805 to 8, 815 to 8, 825 to 8), selected)
     }
 
     @After fun close() { db.close() }
@@ -357,7 +393,7 @@ class Whoop5RRSqliteTest {
 
     @Test fun sourceFingerprintQueriesUseCoveringIndex() {
         val plan = query("EXPLAIN QUERY PLAN $ANALYSIS_FINGERPRINT_SQL") { it.getString("detail") }
-        assertEquals(3, plan.count { it.contains("USING COVERING INDEX rrInterval_source_suspect") })
+        assertEquals(4, plan.count { it.contains("USING COVERING INDEX rrInterval_source_suspect") })
         assertFalse(plan.any { it.contains("SCAN rrInterval") })
     }
 
@@ -654,6 +690,44 @@ class Whoop5RRSqliteTest {
             assertEquals(0, repo.insert(StreamBatch(rr = listOf(RrRow(100, 800, source))), id).rr)
         }
         assertEquals(1, dao.rrIntervals(id, 0, 1000, 100).single().srcChannel)
+    }
+
+    @Test fun whoop4HistoricalRowsWinPerTimestampAndPromoteLegacyRows() = runBlocking {
+        registry("4.0")
+        repo.insert(StreamBatch(rr = listOf(RrRow(100, 800), RrRow(101, 810))), id)
+        repo.insert(StreamBatch(rr = listOf(
+            RrRow(100, 800, RrSourceChannel.WHOOP4_HISTORICAL),
+            RrRow(101, 820, RrSourceChannel.WHOOP4_HISTORICAL),
+        )), id)
+        val rows = repo.rrIntervalsForDevice(id, 100, 101, 100)
+        assertEquals(listOf(800, 820), rows.map { it.rrMs })
+        assertEquals(listOf(8, 8), rows.map { it.srcChannel })
+    }
+
+    @Test fun whoop4HistoricalSourceHasPriorityWithinItsHour() = runBlocking {
+        registry("4.0")
+        repo.insert(StreamBatch(rr = listOf(RrRow(100, 800), RrRow(101, 810))), id)
+        repo.insert(StreamBatch(rr = listOf(RrRow(100, 805, RrSourceChannel.WHOOP4_HISTORICAL))), id)
+        val rows = repo.rrIntervalsForDevice(id, 100, 101, 100)
+        assertEquals(listOf(805), rows.map { it.rrMs })
+    }
+
+    @Test fun whoop4RealtimeSourceWinsOverStandardAndLegacyRows() = runBlocking {
+        registry("4.0")
+        repo.insert(StreamBatch(rr = listOf(
+            RrRow(100, 800),
+            RrRow(100, 810, RrSourceChannel.WHOOP4_STANDARD),
+            RrRow(100, 820, RrSourceChannel.WHOOP4_REALTIME),
+        )), id)
+        val rows = repo.rrIntervalsForDevice(id, 100, 100, 100)
+        assertEquals(listOf(820), rows.map { it.rrMs })
+        assertEquals(listOf(9), rows.map { it.srcChannel })
+    }
+
+    @Test fun whoop4FallsBackToUnlabelledRowsWhenNoHistoryExists() = runBlocking {
+        registry("4.0")
+        repo.insert(StreamBatch(rr = listOf(RrRow(100, 800))), id)
+        assertEquals(listOf(800), repo.rrIntervalsForDevice(id, 0, 1000).map { it.rrMs })
     }
 
     @Test fun firstTagOutsideDayAndSuspectPromotionInvalidateOwnerPolicyCaches() = runBlocking {

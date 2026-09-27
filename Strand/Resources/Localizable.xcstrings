@@ -386,6 +386,64 @@
         }
       }
     },
+    "Lift Log session": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trainingsbuch-Einheit"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesión del Registro de fuerza"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Séance du Carnet de force"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessione del Diario dei pesi"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessão do Registo de força"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Тренировка «Дневника тренировок»"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "力量日志训练"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "力量日誌訓練"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sesja Dziennika siłowni"
+          }
+        }
+      }
+    },
     "Live heart rate is flowing from the ring.": {
       "localizations": {
         "de": {
@@ -444,6 +502,64 @@
         }
       }
     },
+    "Live notifications": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live-Mitteilungen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notificaciones en vivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications en direct"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifiche in tempo reale"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notificações em direto"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Уведомления в реальном времени"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时通知"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即時通知"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Powiadomienia na żywo"
+          }
+        }
+      }
+    },
     "NOOP is connecting to your strap and will sync as soon as it's ready.": {
       "localizations": {
         "de": {
@@ -498,6 +614,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOOP łączy się z paskiem i zsynchronizuje go, gdy tylko będzie gotowy."
+          }
+        }
+      }
+    },
+    "Progress while NOOP pulls history from the strap.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fortschritt, während NOOP den Verlauf vom Strap lädt."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El progreso mientras NOOP descarga el historial de la pulsera."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La progression pendant que NOOP récupère l'historique du bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'avanzamento mentre NOOP scarica lo storico dalla fascia."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O progresso enquanto o NOOP obtém o histórico da pulseira."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Прогресс, пока NOOP загружает историю с браслета."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP 从手环读取历史数据时的进度。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP 從手環讀取歷史資料時的進度。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Postęp, gdy NOOP pobiera historię z paska."
           }
         }
       }
@@ -676,176 +850,60 @@
         }
       }
     },
-    "Shows Connecting… / Syncing… with the chunk count and elapsed time while NOOP pulls history from your strap, including a sync started by the Sync Strap shortcut. Independent of the live heart rate switch above.": {
+    "Shown on the Lock Screen and in the Dynamic Island. A switch only hides one: NOOP still measures and records everything.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Zeigt „Verbinde…“ / „Synchronisiere…“ mit Chunk-Anzahl und verstrichener Zeit, während NOOP Daten von deinem Strap abruft – auch bei einer Synchronisierung über den Kurzbefehl „Strap synchronisieren“. Unabhängig vom Schalter für den Live-Puls oben."
+            "value": "Auf dem Sperrbildschirm und in der Dynamic Island. Ein Schalter blendet nur die Anzeige aus: NOOP misst und speichert weiterhin alles."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Muestra Conectando… / Sincronizando… con el número de fragmentos y el tiempo transcurrido mientras NOOP descarga el historial de tu pulsera, incluida una sincronización iniciada con el atajo Sincronizar pulsera. Independiente del interruptor de frecuencia cardíaca en vivo de arriba."
+            "value": "En la pantalla de bloqueo y en la Dynamic Island. Un interruptor solo oculta la notificación: NOOP sigue midiendo y registrando todo."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Affiche Connexion… / Synchronisation… avec le nombre de blocs et le temps écoulé pendant que NOOP récupère l'historique de votre bracelet, y compris une synchronisation lancée par le raccourci Synchroniser le bracelet. Indépendant de l'interrupteur de fréquence cardiaque en direct ci-dessus."
+            "value": "Sur l'écran verrouillé et dans la Dynamic Island. Un interrupteur ne fait que masquer l'affichage : NOOP continue de tout mesurer et d'enregistrer."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostra Connessione… / Sincronizzazione… con il numero di blocchi e il tempo trascorso mentre NOOP scarica la cronologia dalla fascia, anche per una sincronizzazione avviata dal comando rapido Sincronizza la fascia. Indipendente dall'interruttore della frequenza cardiaca in tempo reale qui sopra."
+            "value": "Sulla schermata di blocco e nella Dynamic Island. Un interruttore nasconde solo la notifica: NOOP continua a misurare e registrare tutto."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Mostra A ligar… / A sincronizar… com o número de blocos e o tempo decorrido enquanto o NOOP transfere o histórico da sua pulseira, incluindo uma sincronização iniciada pelo atalho Sincronizar pulseira. Independente do interruptor de frequência cardíaca em direto acima."
+            "value": "No ecrã de bloqueio e na Dynamic Island. Um interruptor apenas oculta a notificação: o NOOP continua a medir e a registar tudo."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Показывает «Подключение…» / «Синхронизация…» с числом блоков и прошедшим временем, пока NOOP загружает историю с браслета, в том числе при синхронизации через команду «Синхронизировать браслет». Не зависит от переключателя пульса в реальном времени выше."
+            "value": "На экране блокировки и в Dynamic Island. Переключатель только скрывает уведомление: NOOP продолжает всё измерять и записывать."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOP 从手环读取历史数据时显示“连接中…”/“同步中…”、数据块数量和已用时间，包括通过“同步手环”快捷指令启动的同步。与上方的实时心率开关无关。"
+            "value": "显示在锁定屏幕和灵动岛上。开关只会隐藏通知：NOOP 仍会测量并记录所有数据。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "NOOP 從手環讀取歷史資料時顯示「連接中…」/「同步中…」、資料塊數量和已用時間，包括透過「同步手環」捷徑啟動的同步。與上方的即時心率開關無關。"
+            "value": "顯示在鎖定畫面和動態島上。開關只會隱藏通知：NOOP 仍會測量並記錄所有資料。"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pokazuje Łączenie… / Synchronizowanie… z liczbą fragmentów i czasem trwania, gdy NOOP pobiera historię z paska, także przy synchronizacji uruchomionej skrótem Synchronizuj pasek. Niezależne od przełącznika tętna na żywo powyżej."
-          }
-        }
-      }
-    },
-    "Shows sync progress on the Lock Screen and in the Dynamic Island": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zeigt den Synchronisierungsfortschritt auf dem Sperrbildschirm und in der Dynamic Island"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Muestra el progreso de la sincronización en la pantalla de bloqueo y en la Dynamic Island"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Affiche la progression de la synchronisation sur l'écran verrouillé et dans la Dynamic Island"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostra l'avanzamento della sincronizzazione nella schermata di blocco e nella Dynamic Island"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostra o progresso da sincronização no ecrã bloqueado e na Dynamic Island"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Показывает ход синхронизации на экране блокировки и в Dynamic Island"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在锁定屏幕和灵动岛中显示同步进度"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在鎖定畫面和動態島中顯示同步進度"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pokazuje postęp synchronizacji na ekranie blokady i w Dynamic Island"
-          }
-        }
-      }
-    },
-    "Strap sync in Dynamic Island": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Strap-Synchronisierung in der Dynamic Island"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sincronización de la pulsera en la Dynamic Island"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Synchronisation du bracelet dans la Dynamic Island"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sincronizzazione della fascia nella Dynamic Island"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sincronização da pulseira na Dynamic Island"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Синхронизация браслета в Dynamic Island"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "灵动岛中显示手环同步"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "動態島中顯示手環同步"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Synchronizacja paska w Dynamic Island"
+            "value": "Na ekranie blokady i w Dynamic Island. Przełącznik tylko ukrywa powiadomienie: NOOP nadal wszystko mierzy i zapisuje."
           }
         }
       }
@@ -1793,6 +1851,122 @@
     "Working sets": { "localizations": {
       "de": {"stringUnit": {"state": "translated", "value": "Arbeitssätze"}}, "es": {"stringUnit": {"state": "translated", "value": "Series efectivas"}}, "fr": {"stringUnit": {"state": "translated", "value": "Séries de travail"}}, "it": {"stringUnit": {"state": "translated", "value": "Serie di lavoro"}}, "pl": {"stringUnit": {"state": "translated", "value": "Serie robocze"}}, "pt-PT": {"stringUnit": {"state": "translated", "value": "Séries de trabalho"}}, "ru": {"stringUnit": {"state": "translated", "value": "Рабочие подходы"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "正式组"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "正式組"}}
     } },
+    "While the strap is connected.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Solange der Strap verbunden ist."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mientras la pulsera está conectada."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tant que le bracelet est connecté."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finché la fascia è collegata."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enquanto a pulseira está ligada."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Пока браслет подключён."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手环连接期间。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手環連接期間。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gdy pasek jest połączony."
+          }
+        }
+      }
+    },
+    "Your set, rest and heart rate, and the Lock Screen light-up on a double-tap.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dein Satz, deine Pause und deine Herzfrequenz, dazu das Aufleuchten des Sperrbildschirms beim Doppeltippen."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tu serie, tu descanso y tu frecuencia cardíaca, y el encendido de la pantalla de bloqueo con un doble toque."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre série, votre repos et votre fréquence cardiaque, et l'allumage de l'écran verrouillé au double-tap."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tua serie, il recupero e la frequenza cardiaca, e l'accensione della schermata di blocco al doppio tocco."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A tua série, o teu descanso e a tua frequência cardíaca, e o acender do ecrã de bloqueio com um duplo toque."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ваш подход, отдых и пульс, а также включение экрана блокировки по двойному касанию."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你当前的组、休息和心率，以及双击时点亮锁定屏幕。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你目前的組、休息和心率，以及雙擊時點亮鎖定畫面。"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Twoja seria, przerwa i tętno oraz podświetlenie ekranu blokady po podwójnym stuknięciu."
+          }
+        }
+      }
+    },
     "Your strap is already syncing.": {
       "localizations": {
         "de": {
@@ -3294,6 +3468,12 @@
             "value": "%1$@ · typiquement %2$@ à %3$@, %4$lld."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " %@ · tipicamente da %@ a %@, %lld."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -3637,6 +3817,12 @@
           }
         },
         "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%.2f V"
+          }
+        },
+        "it": {
           "stringUnit": {
             "state": "translated",
             "value": "%.2f V"
@@ -5542,6 +5728,12 @@
             "value": "%1$@ nécessaire"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servono %@"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -5836,6 +6028,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ a dormi"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ di sonno"
           }
         },
         "pt-PT": {
@@ -8559,6 +8757,12 @@
             "value": "%1$@-%2$@"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@-%@"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -10061,6 +10265,12 @@
             "value": "%1$@: %2$@. Pas encore assez d'historique pour une gamme typique."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@: %@. Storico non ancora sufficiente per un intervallo tipico."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -11194,6 +11404,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "il y a %lld jours"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld giorni fa"
           }
         },
         "pt-PT": {
@@ -15895,6 +16111,12 @@
             "value": "%1$lld-%2$lld%3$@ · étape %4$lld"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld-%lld%@ · passo %lld"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -16545,6 +16767,12 @@
             "value": "%1$lld–%2$lld bpm"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld–%lld bpm"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -17135,6 +17363,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Échelle 0-%1$lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "scala 0-%lld"
           }
         },
         "pt-PT": {
@@ -18112,6 +18346,12 @@
           }
         },
         "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 min"
+          }
+        },
+        "it": {
           "stringUnit": {
             "state": "translated",
             "value": "1 min"
@@ -19277,6 +19517,12 @@
             "value": "1 semaine"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 settimana"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -19327,6 +19573,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "1 entraînement"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 allenamento"
           }
         },
         "pt-PT": {
@@ -19961,6 +20213,12 @@
             "value": "2 jours"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 giorni"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -20013,6 +20271,12 @@
             "value": "2 min"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 min"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -20057,6 +20321,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "2 semaines"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "2 settimane"
           }
         },
         "pt-PT": {
@@ -20691,6 +20961,12 @@
             "value": "5 min"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "5 min"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -21089,6 +21365,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "7 nuits de base %1$lld ms, normale %2$lld à %3$lld ms%4$@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Linea di base a 7 notti %lld ms, normale da %lld a %lld ms%@"
           }
         },
         "pt-PT": {
@@ -21747,6 +22029,12 @@
             "value": "Un raccourci veut ajouter %lld jours et %lld entraînements à la source d'import Apple Santé."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un comando rapido vuole aggiungere %lld giorni e %lld allenamenti alla sorgente di importazione di Apple Health."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -21797,6 +22085,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Un raccourci veut ajouter des données à la source d'import Apple Santé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un comando rapido vuole aggiungere dati alla sorgente di importazione di Apple Health."
           }
         },
         "pt-PT": {
@@ -22435,6 +22729,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Une lecture classique en un coup d'œil des scores propres à NOOP. Mêmes données, différents objectifs."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una lettura classica, a colpo d'occhio, dei punteggi di NOOP. Stessi dati, prospettiva diversa."
           }
         },
         "pt-PT": {
@@ -23933,6 +24233,12 @@
             "value": "Un rappel une fois par jour lorsque votre effort atteint le bas de la plage optimale du jour, calculée à partir de votre récupération."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un avviso una volta al giorno quando il tuo Sforzo raggiunge il limite inferiore dell'intervallo di carico ottimale di oggi, calcolato in base al tuo recupero."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -24286,6 +24592,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Une lecture en lecture seule Plews/Altini plus petite valeur tout en changeant de votre HRV nocturne: il montre si votre base de 7 nuits HRV est au-dessus, à l'intérieur, ou en dessous de votre bande normale personnelle. Il ne change rien d'autre - l'anneau de charge est identique que ce soit en marche ou en panne. Il s'agit d'un test rugueux / précoce, non encore validé par rapport à des données réelles variables (n=1)."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una lettura in sola consultazione della tua HRV notturna secondo la variazione minima significativa di Plews/Altini: mostra se la tua linea di base HRV a 7 notti è sopra, dentro o sotto il tuo intervallo normale personale. Non cambia nient'altro - l'anello Carica è identico sia che sia attivo sia che sia disattivato. Si tratta di un test iniziale e approssimativo, non ancora convalidato su dati reali variabili (n=1)."
           }
         },
         "pt-PT": {
@@ -25041,6 +25353,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Une recette cardiorespiratoire transparente qui récupère profonde et REM mieux que l'ancienne mise en scène V1, et est maintenant la par défaut. Cela ne fait que changer la façon dont les nuits déjà détectées sont divisées en étapes (la détection et les scores sont inchangés); éteindre pour revenir en V1. Ça prend effet les nuits suivantes."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una ricetta cardiorespiratoria trasparente che rileva il sonno profondo e REM meglio della precedente suddivisione in fasi V1, ed è ora quella predefinita. Cambia solo il modo in cui le notti già rilevate vengono suddivise in fasi (rilevamento e punteggi restano invariati); disattivala per tornare a V1. Ha effetto sulle prossime notti elaborate."
           }
         },
         "pt-PT": {
@@ -28403,6 +28721,12 @@
             "value": "Ajoutez vos identifiants d'application Oura à OuraSecrets.xcconfig pour activer cette option."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiungi le credenziali della tua app Oura a OuraSecrets.xcconfig per attivare questa funzione."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -29151,6 +29475,12 @@
             "value": "Après un effort intense"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dopo uno sforzo ad alta intensità"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -29799,6 +30129,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Toutes les activités"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tutte le attività"
           }
         },
         "pt-PT": {
@@ -32241,54 +32577,60 @@
         }
       }
     },
-    "Armed on the strap itself with the experimental 5/MG command. A strap-driven wake is still unconfirmed on 5/MG on our side (confirmed only on WHOOP 4.0), so keep a backup alarm for anything you truly can't miss.": {
+    "Armed on the strap with an experimental 5/MG command. Strap-driven wakes have been reported on 5.0 and MG, but are not guaranteed. Keep a backup alarm for anything you cannot miss.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Bewaffnet am Riemen selbst mit dem experimentellen Befehl 5/MG. Ein gurtgetriebener Wake ist immer noch unbestätigt auf 5/MG auf unserer Seite (bestätigt nur auf WHOOP 4.0), also halte einen Backup-Alarm für alles, was du wirklich nicht verpassen kannst."
+            "value": "Der Alarm wurde mit einem experimentellen 5/MG-Befehl auf dem Strap aktiviert. Weckvorgänge durch den Strap wurden für 5.0 und MG gemeldet, sind aber nicht garantiert. Behalte für alles Wichtige einen Ersatzwecker."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armado en la correa misma con el comando experimental 5/MG. Un velador con correa sigue sin confirmar en 5/MG de nuestro lado (confirmado sólo en WHOOP 4.0), así que mantenga una alarma de respaldo para cualquier cosa que realmente no se puede perder."
+            "value": "La alarma se activó en la pulsera con un comando experimental 5/MG. Se han comunicado despertares desde pulseras 5.0 y MG, pero no están garantizados. Mantén una alarma de respaldo para lo que no puedas perderte."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armé sur la sangle elle-même avec la commande expérimentale 5/MG. Un réveil à sangle est toujours non confirmé sur 5/MG de notre côté (confirmé uniquement sur WHOOP 4.0), donc gardez une alarme de sauvegarde pour tout ce que vous ne pouvez vraiment pas manquer."
+            "value": "L’alarme est activée sur le bracelet avec une commande expérimentale 5/MG. Des réveils par le bracelet ont été signalés sur 5.0 et MG, sans être garantis. Gardez une alarme de secours pour tout réveil important."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La sveglia è stata attivata sulla fascia con un comando sperimentale 5/MG. Sono stati segnalati risvegli dalla fascia su 5.0 e MG, ma non sono garantiti. Tieni una sveglia di riserva per gli impegni importanti."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "Armado na própria correia com o comando experimental 5/MG. Um rasto acionado por correia ainda não está confirmado em 5/MG do nosso lado (confirmado apenas em WHOOP 4.0), por isso mantenha um alarme de reserva para qualquer coisa que não possa realmente perder."
+            "value": "O alarme foi armado na pulseira com um comando experimental 5/MG. Foram comunicados despertares pela pulseira em 5.0 e MG, mas não são garantidos. Mantém um alarme de reserva para tudo o que não podes perder."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Uzbrojony w sam pasek za pomocą eksperymentalnego polecenia 5/MG. Budzenie napędzane paskiem jest nadal niepotwierdzone na 5/MG po naszej stronie (potwierdzone tylko na WHOOP 4.0), więc miej alarm zapasowy na wypadek wszystkiego, czego naprawdę nie możesz przegapić."
+            "value": "Alarm uzbrojono na opasce eksperymentalnym poleceniem 5/MG. Zgłaszano wybudzanie przez opaski 5.0 i MG, ale nie jest ono gwarantowane. Zachowaj alarm zapasowy na ważne okazje."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Устанавливается на самом браслете экспериментальной командой 5/MG. Пробуждение с браслета на 5/MG у нас пока не подтверждено (подтверждено только на WHOOP 4.0), поэтому оставьте резервный будильник для всего, что действительно нельзя пропустить."
+            "value": "Будильник установлен на браслете экспериментальной командой 5/MG. Сообщалось о срабатывании на 5.0 и MG, но оно не гарантировано. Оставьте резервный будильник для важных событий."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用实验性的 5/MG 命令在手环上设置。我们尚未确认 5/MG 上由手环驱动的唤醒（仅在 WHOOP 4.0 上确认过），因此对于绝不能错过的事项请保留备用闹钟。"
+            "value": "已通过实验性 5/MG 命令在手环上设置闹钟。有用户报告 5.0 和 MG 手环能够唤醒，但不保证每次生效。重要事项请保留备用闹钟。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用實驗性的 5/MG 指令在手環上設定。我們尚未確認 5/MG 上由手環驅動的喚醒（僅在 WHOOP 4.0 上確認過），因此對於絕不能錯過的事項請保留備用鬧鐘。"
+            "value": "已透過實驗性 5/MG 指令在手環上設定鬧鐘。有使用者回報 5.0 和 MG 手環能夠喚醒，但不保證每次生效。重要事項請保留備用鬧鐘。"
           }
         }
       }
@@ -32311,6 +32653,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Armé sur la sangle elle-même, il peut bourdonner à votre réveil même si votre téléphone est endormi ou NOOP est fermé. Envoie la commande d'alarme exacte que l'application officielle envoie, confirmé bourdonnement sur un vrai WHOOP 4.0 (prise de fil communautaire + test sur l'appareil, #535). Gardez une alarme de secours pour tout ce que vous ne pouvez vraiment pas manquer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impostata direttamente sulla fascia, così può vibrare all'orario di sveglia anche se il telefono è in standby o NOOP è chiuso. Invia esattamente lo stesso comando sveglia dell'app ufficiale, con vibrazione confermata su un vero WHOOP 4.0 (cattura del traffico dalla community + test sul dispositivo, #535). Tieni una sveglia di riserva per tutto ciò che non puoi assolutamente perdere."
           }
         },
         "pt-PT": {
@@ -32423,6 +32771,12 @@
             "value": "Bras la sangle pour bourdonner à votre réveil, même si NOOP est fermé. Envoie la commande d'alarme exacte que l'application officielle envoie, confirmé bourdonnement sur un vrai WHOOP 4.0 (prise de fil communautaire + test sur l'appareil, #535). Gardez une alarme de secours pour tout ce que vous ne pouvez vraiment pas manquer."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imposta la fascia per vibrare all'orario di sveglia, anche se NOOP è chiuso. Invia esattamente lo stesso comando sveglia dell'app ufficiale, con vibrazione confermata su un vero WHOOP 4.0 (cattura del traffico dalla community + test sul dispositivo, #535). Tieni una sveglia di riserva per tutto ciò che non puoi assolutamente perdere."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -32531,6 +32885,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Organiser Aujourd'hui"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Organizza Oggi"
           }
         },
         "ru": {
@@ -37115,6 +37475,12 @@
             "value": "Tension batterie %.2f volts"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tensione batteria %.2f volt"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -37165,6 +37531,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sonde d'info batterie (#592 RE)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda info batteria (#592 RE)"
           }
         },
         "pt-PT": {
@@ -37219,6 +37591,12 @@
             "value": "Sonde d'info batterie (#592 RE)…"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda info batteria (#592 RE)…"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -37263,6 +37641,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Résultat de la sonde d'info batterie (#592)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risultato sonda info batteria (#592)"
           }
         },
         "pt-PT": {
@@ -39203,6 +39587,12 @@
             "value": "Sonde de position corporelle (#690 RE)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda posizione sul corpo (#690 RE)"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -39255,6 +39645,12 @@
             "value": "Sonde de position corporelle (#690 RE)…"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda posizione sul corpo (#690 RE)…"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -39299,6 +39695,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Résultat de la sonde de position corporelle (#690)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risultato sonda posizione sul corpo (#690)"
           }
         },
         "pt-PT": {
@@ -40525,6 +40927,12 @@
             "value": "Apportez un marqueur CSV (date, marqueur, valeur, unité). Noms qui correspondent au pli du catalogue sur vos marqueurs existants; tout le reste vient comme marqueur personnalisé. Les lignes qui ne peuvent pas être lues sont ignorées et comptées, jamais devinées. Tout ce que vous importez reste sur %1$@."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importa un CSV di marcatori (data, marcatore, valore, unità). I nomi che corrispondono al catalogo vengono uniti ai tuoi marcatori esistenti; tutto il resto viene importato come marcatore personalizzato. Le righe illeggibili vengono saltate e conteggiate, mai indovinate. Tutto ciò che importi resta su %@."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -40633,6 +41041,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Diffusion des ressources humaines de ce téléphone"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trasmetti la FC da questo telefono"
           }
         },
         "ru": {
@@ -40911,6 +41325,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sangle de diffusion HR (Garmin/ANT)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trasmetti la FC della fascia (Garmin/ANT)"
           }
         },
         "ru": {
@@ -43997,6 +44417,12 @@
             "value": "Étalonnage (%1$lld/%2$lld nuits)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Calibrazione (%lld/%lld notti)"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -45777,6 +46203,12 @@
             "value": "Changement au numéro"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambia in numero"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -45827,6 +46259,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Changement à Oui/Non"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cambia in Sì/No"
           }
         },
         "pt-PT": {
@@ -47051,6 +47489,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "La Charge évalue votre VFC par rapport à votre valeur de référence personnelle (~55%%), votre fréquence cardiaque au repos (~20%%), la qualité de votre repos (~15%%), votre respiration (~5%%) et l'écart de température cutanée (~5%%). L'Effort est une charge cardiovasculaire de 0 à %lld calculée à partir du temps passé dans les zones de fréquence cardiaque. Le Repos est déterminé selon le mouvement et la fréquence cardiaque. Tout est calculé ici à partir des données brutes du bracelet. Cela fonctionne pour chaque jour où NOOP a collecté des flux bruts."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carica pesa la tua HRV rispetto alla tua linea di base personale (~55%%), la frequenza cardiaca a riposo (~20%%), la qualità del riposo (~15%%), la respirazione (~5%%) e la deviazione della temperatura della pelle (~5%%). Sforzo è un carico cardiovascolare su scala 0-%lld basato sul tempo trascorso nelle zone di frequenza cardiaca. Riposo viene suddiviso in fasi in base a movimento e frequenza cardiaca. Tutto viene calcolato qui dai dati grezzi della fascia. Funziona per ogni giorno in cui NOOP ha raccolto flussi grezzi."
           }
         },
         "pt-PT": {
@@ -56105,6 +56549,12 @@
             "value": "Lire comme suit:"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lettura combinata"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -58815,6 +59265,12 @@
             "value": "Jour 1: lumière vive %1$@-%2$@, lumières éteintes autour de %3$@."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Giorno 1: luce intensa %@-%@, luci spente verso le %@."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -60591,6 +61047,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Carreaux détaillés"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riquadri dettagliati"
           }
         },
         "ru": {
@@ -64271,6 +64733,12 @@
             "value": "ALGORITHMES EXPERIMENTAUX"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ALGORITMI SPERIMENTALI"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -64623,6 +65091,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Chaque ligne indique de combien de battements par minute votre fréquence cardiaque a changé après l’effort. Seuls les entraînements intenses avec une fréquence cardiaque enregistrée après l’effort sont inclus."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni linea mostra di quanti battiti al minuto è cambiata la tua frequenza cardiaca dopo l'esercizio. Sono inclusi solo gli allenamenti ad alta intensità con frequenza cardiaca registrata dopo l'allenamento."
           }
         },
         "pt-PT": {
@@ -68458,6 +68932,12 @@
             "value": "Chaque métrique est une approximation non validée. N'utilisez pas NOOP pour diagnostiquer, traiter ou prendre une décision de santé. Consultez toujours un professionnel qualifié."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogni metrica è un'approssimazione non convalidata. Non usare NOOP per diagnosticare, curare o prendere decisioni sulla salute. Consulta sempre un professionista qualificato."
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -70036,6 +70516,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Expérimental : à vos risques et périls"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sperimentale: a tuo rischio"
           }
         },
         "ru": {
@@ -73470,6 +73956,12 @@
             "value": "Oublie l'accès à Oura"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dimentica l'accesso Oura"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -75996,6 +76488,12 @@
             "value": "Groupe"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gruppo"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -76400,6 +76898,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "HEURES DE SOMMEIL"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ORE DI SONNO"
           }
         },
         "pt-PT": {
@@ -77174,6 +77678,12 @@
             "value": "Interpolation du sous-logement HR-from-PPG (v26)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interpolazione sub-lag FC da PPG (riempimento lacune v26)"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -77528,6 +78038,12 @@
             "value": "VFC (RMSSD)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HRV (RMSSD)"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -77806,6 +78322,12 @@
             "value": "Préparation à la VFC (Plews/Altini)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prontezza HRV (Plews/Altini)"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -77852,6 +78374,12 @@
             "value": "Préparation à la VFC (expérimental)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prontezza HRV (sperimentale)"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -77896,6 +78424,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Préparation à la VFC (expérimental): %1$@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Prontezza HRV (sperimentale): %@"
           }
         },
         "pt-PT": {
@@ -78064,6 +78598,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fenêtre VFC"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finestra HRV"
           }
         },
         "ru": {
@@ -78529,6 +79069,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "En haut : ce mode de test est désactivé, donc le rapport n'a pas de capture pour lui. Pour un rapport utile, allumer le mode, reproduire le problème en portant la sangle, puis rapporter à nouveau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attenzione: questa modalità di test è disattivata, quindi il report non contiene acquisizioni. Per un report utile, attiva la modalità, riproduci il problema indossando la fascia, poi invia di nuovo il report."
           }
         },
         "pt-PT": {
@@ -79071,6 +79617,12 @@
             "value": "Récupération de la fréquence cardiaque"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recupero della frequenza cardiaca"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -79529,6 +80081,12 @@
             "value": "Récupération de la fréquence cardiaque à %1$@ : %2$lld battements par minute"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recupero della frequenza cardiaca a %@, %lld battiti al minuto"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -79573,6 +80131,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Récupération de la fréquence cardiaque à %1$@ : indisponible"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recupero della frequenza cardiaca a %@, non disponibile"
           }
         },
         "pt-PT": {
@@ -80039,6 +80603,12 @@
             "value": "Tendance de récupération de la fréquence cardiaque en battements par minute"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Andamento del recupero della frequenza cardiaca in battiti al minuto"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -80083,6 +80653,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Récupération cardiaque · %1$@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recupero della frequenza cardiaca · %@"
           }
         },
         "pt-PT": {
@@ -81197,6 +81773,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "L'histoire reste sous la question originale donc WHOOP importations toujours en ligne."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lo storico resta sotto la domanda originale, così le importazioni WHOOP continuano a corrispondere."
           }
         },
         "ru": {
@@ -83336,6 +83918,12 @@
             "value": "Comment lire ceci : HRV, HR au repos, Durée du sommeil, Taux respiratoire et température de la peau sont mesurés à partir de la sangle (la température de la peau est indiquée comme l'écart par rapport à votre propre base). Les séances d'entraînement sont le nombre d'activités que vous avez enregistrées ou qui ont été détectées. La récupération, la souche et le stress sont les propres scores sur les appareils de NOOP, et non des mesures cliniques: La récupération est un composé de préparation quotidienne (HRV, HR au repos, sommeil et tendance du temps de la peau), la charge cardiovasculaire est dérivée de la fréquence cardiaque, et le stress est un indice de charge autonome 0-3 de HR au repos et HRV."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Come leggerlo: HRV, FC a riposo, durata del sonno, frequenza respiratoria e temperatura della pelle sono misurate dalla fascia (la temperatura della pelle è mostrata come deviazione dalla tua linea di base). Allenamenti è il numero di attività che hai registrato o che sono state rilevate. Recupero, Carico e Stress sono punteggi di NOOP calcolati sul dispositivo, non misure cliniche: Recupero è un indice composito giornaliero di prontezza (HRV, FC a riposo, sonno e andamento della temperatura della pelle), Carico è il carico cardiovascolare derivato dalla frequenza cardiaca e Stress è un indice di carico autonomico 0-3 basato su FC a riposo e HRV."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -85315,6 +85903,12 @@
             "value": "Importer les données Apple Santé ?"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importare i dati di Apple Health?"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -85655,6 +86249,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Importer de nouveau"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Importa di nuovo"
           }
         },
         "pt-PT": {
@@ -87307,6 +87907,12 @@
             "value": "Indépendant : non affilié à WHOOP"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indipendente: non affiliato a WHOOP"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -88782,6 +89388,12 @@
             "value": "Rappel du journal"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Promemoria diario"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -89174,6 +89786,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Garder les derniers instantanés"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conserva gli ultimi snapshot"
           }
         },
         "ru": {
@@ -89690,6 +90308,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Démarrage à (batterie)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva a (batteria fascia)"
           }
         },
         "ru": {
@@ -93394,6 +94018,12 @@
             "value": "Mode de vie"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stile di vita"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -93850,6 +94480,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Liquide aujourd'hui (prototype)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oggi Liquid (prototipo)"
           }
         },
         "pt-PT": {
@@ -94374,6 +95010,12 @@
             "value": "Sessions en direct (bêta)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sessioni in diretta (beta)"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -94693,64 +95335,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tutaj pojawia się aktualne tętno po podłączeniu paska."
-          }
-        }
-      }
-    },
-    "Live heart rate in Dynamic Island": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Live-Herzfrequenz in der Dynamic Island"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frecuencia cardíaca en vivo en la Dynamic Island"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fréquence cardiaque en direct dans la Dynamic Island"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frequenza cardiaca in diretta nella Dynamic Island"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Frequência cardíaca em direto em Dynamic Island"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Пульс в реальном времени в Dynamic Island"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在灵动岛中显示实时心率"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在動態島中顯示即時心率"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tętno na żywo w Dynamic Island"
           }
         }
       }
@@ -96609,6 +97193,12 @@
             "value": "Remplir le journal du jour"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Compila il diario di oggi"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -97305,6 +97895,12 @@
             "value": "Des plages plus longues déverrouillent comme plus d'histoire construit."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Intervalli più lunghi si sbloccano man mano che lo storico cresce."
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -97355,6 +97951,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Record : %lld jours"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record: %lld giorni"
           }
         },
         "pt-PT": {
@@ -97413,6 +98015,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Record : 1 jour"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record: 1 giorno"
           }
         },
         "pt-PT": {
@@ -102756,6 +103364,12 @@
             "value": "Raffinement de la sillage en mouvement"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rifinitura del risveglio basata sul movimento"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -103099,6 +103713,12 @@
             "value": "Bouge de toute façon"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sposta comunque"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -103201,6 +103821,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bouge ce sommeil ?"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spostare questo sonno?"
           }
         },
         "ru": {
@@ -104259,6 +104885,12 @@
             "value": "NOOP vous donne trois scores quotidiens (charge, effort et repos), chacun sur une échelle de 0-100. Ils sont construits à partir des signaux bruts de votre sangle en utilisant la science du sport publiée et évaluée par des pairs, et calculés entièrement sur votre appareil. Ce ne sont pas les scores de WHOOP: nous n'avons pas les algorithmes privés de WHOOP et ne prétendons pas. Ils visent les mêmes trois questions en utilisant la science ouverte, donc ils vont généralement suivre WHOOP dans la direction, mais ne vont pas correspondre nombre-pour-numéro. Et c'est le problème."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP ti fornisce tre punteggi giornalieri (Carica, Sforzo e Riposo), ciascuno su una scala 0-100. Sono calcolati dai segnali grezzi della tua fascia usando scienza dello sport pubblicata e sottoposta a revisione paritaria, interamente sul tuo dispositivo. NON sono i punteggi di WHOOP: non abbiamo gli algoritmi privati di WHOOP e non fingiamo di averli. Rispondono alle stesse tre domande con scienza aperta, quindi di solito seguono la stessa direzione di quelli di WHOOP, ma non coincidono numero per numero. Ed è proprio questo il punto."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -104428,6 +105060,12 @@
             "value": "NOOP est un projet non officiel : il n'est ni affilié à, ni approuvé par, ni sponsorisé par WHOOP, Inc. « WHOOP » est leur marque déposée, utilisée uniquement pour désigner le matériel avec lequel NOOP fonctionne."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP è un progetto non ufficiale: non è affiliato, approvato né sponsorizzato da WHOOP, Inc. \"WHOOP\" è un loro marchio, usato solo per indicare l'hardware con cui funziona NOOP."
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -104537,6 +105175,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOOP est gratuit et fourni « en l'état », sans garantie. La responsabilité est limitée dans toute la mesure permise par la loi qui vous est applicable, et rien ici ne supprime les protections que votre législation locale ne nous permet pas de supprimer."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP è gratuito e fornito \"così com'è\", senza alcuna garanzia. La responsabilità è limitata nella misura massima consentita dalla legge applicabile nel tuo caso, e nulla qui elimina le tutele che la tua legge locale non ci consente di eliminare."
           }
         },
         "ru": {
@@ -105894,6 +106538,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "NOOP communique avec le micrologiciel de votre bracelet via un protocole non officiel, cartographié de manière indépendante. Il subsiste un risque résiduel pour l'appareil, ses données et sa connexion aux services officiels. Vous assumez ce risque."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "NOOP comunica con il firmware della tua fascia tramite un protocollo non ufficiale, mappato in modo indipendente. Esiste un rischio residuo per il dispositivo, i suoi dati e la sua connessione ai servizi ufficiali. Ti assumi tu questo rischio."
           }
         },
         "ru": {
@@ -109762,6 +110412,12 @@
             "value": "Pas de détail de rythme cardiaque pour cette nuit"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun dettaglio della frequenza cardiaca per questa notte"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -110568,6 +111224,12 @@
             "value": "Aucune nouvelle nuit de votre strap depuis %lld jours. Vérifiez qu'il est connecté et enregistre les données."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna nuova notte dalla tua fascia da %lld giorni. Verifica che sia collegata e che stia salvando i dati."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -110972,6 +111634,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aucune photo → personne.crop.circle repli"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna foto → fallback person.crop.circle"
           }
         },
         "pt-PT": {
@@ -111554,6 +112222,12 @@
             "value": "Pas de sommeil suivi hier soir"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessun sonno registrato la scorsa notte"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -112069,6 +112743,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Aucune garantie ; responsabilité limitée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nessuna garanzia; responsabilità limitata"
           }
         },
         "ru": {
@@ -112721,6 +113401,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pas un dispositif médical, pas un avis médical"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non è un dispositivo medico né un consiglio medico"
           }
         },
         "ru": {
@@ -115625,6 +116311,12 @@
             "value": "Notifier lorsque l'effort optimal est atteint"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifica quando viene raggiunto il carico ottimale"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -116093,6 +116785,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "OPTIMAL"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OTTIMALE"
           }
         },
         "pt-PT": {
@@ -116732,6 +117430,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Les sauvegardes les plus anciennes au-delà de ce nombre sont taillées, les plus anciennes d'abord (de nombreux jours). Si jamais les données corrompent, restaure le plus récent."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "I backup più vecchi oltre questo numero vengono eliminati, a partire dal più vecchio (≈ altrettanti giorni). Se i dati si danneggiano, ripristina il più recente."
           }
         },
         "pt-PT": {
@@ -118667,6 +119371,12 @@
             "value": "Ouvrir le journal"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri diario"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -119304,6 +120014,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Effort optimal atteint"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carico ottimale raggiunto"
           }
         },
         "pt-PT": {
@@ -122192,6 +122908,12 @@
             "value": "Capture de la VFC en pause"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metti in pausa l'acquisizione HRV"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -122364,6 +123086,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Pic à %lld bpm"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Picco %lld bpm"
           }
         },
         "pt-PT": {
@@ -124124,6 +124852,12 @@
             "value": "Veuillez confirmer chacun de ces éléments :"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conferma ciascuno di questi punti:"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -124226,6 +124960,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Veuillez lire les points ci-dessous, puis confirmer chaque déclaration."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leggi i punti qui sotto, poi conferma ciascuna affermazione."
           }
         },
         "ru": {
@@ -124454,6 +125194,12 @@
             "value": "Apparaît après la synchronisation de votre bracelet et le calcul du jour par NOOP — pas à la seconde exacte du franchissement. Au plus une fois par jour."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arriva dopo che la fascia si sincronizza e NOOP calcola il punteggio della giornata — non nell'esatto secondo in cui lo superi. Al massimo una volta al giorno."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -124504,6 +125250,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Mode d'économie d'énergie"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modalità risparmio energetico"
           }
         },
         "ru": {
@@ -127147,6 +127899,12 @@
             "value": "RÉCUPÉRATION"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "RECUPERO"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -127605,6 +128363,12 @@
             "value": "SOMMEIL RÉPARATEUR"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SONNO RIGENERANTE"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -127658,6 +128422,12 @@
           }
         },
         "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "FCR"
+          }
+        },
+        "it": {
           "stringUnit": {
             "state": "translated",
             "value": "FCR"
@@ -129120,6 +129890,12 @@
             "value": "Lisez votre fréquence cardiaque, la VFC, l'oxygène sanguin, la fréquence respiratoire, le sommeil, les étapes et l'énergie directement depuis Apple Health, et écrivez les données de la sangle de NOOP: dormir avec des étapes complètes, la fréquence cardiaque continue, les séances d'entraînement et les éléments vitaux nocturnes. Tout reste sur %1$@."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Leggi frequenza cardiaca, HRV, ossigeno nel sangue, frequenza respiratoria, sonno, passi ed energia direttamente da Apple Health, e riscrivi lì i dati della fascia di NOOP: sonno con tutte le fasi, frequenza cardiaca continua, allenamenti e parametri vitali notturni. Tutto resta su %@."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -130200,6 +130976,12 @@
             "value": "Lectures"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letture"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -130726,6 +131508,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sonde de redémarrage (4,0 RE)..."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda riavvio (4.0 RE)…"
           }
         },
         "pt-PT": {
@@ -132254,6 +133042,12 @@
             "value": "Tendance de récupération"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Andamento del recupero"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -132769,6 +133563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rafraîchir l'âge de la condition physique"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiorna Età fitness"
           }
         },
         "pt-PT": {
@@ -134413,6 +135213,12 @@
             "value": "Renommer l'élément"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rinomina elemento"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -134457,6 +135263,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Renommer..."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rinomina…"
           }
         },
         "ru": {
@@ -134735,6 +135547,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Remplace l'onglet Aujourd'hui par la refonte du prototype. Éteignez-le à tout moment pour revenir au tableau de bord classique. Lis les mêmes données en direct de votre sangle."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sostituisce la scheda Oggi con il prototipo del nuovo design. Disattivalo in qualsiasi momento per tornare alla dashboard classica. Legge gli stessi dati in diretta dalla tua fascia."
           }
         },
         "pt-PT": {
@@ -135019,6 +135837,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Alternatives de niveau de recherche / ajustements de précision. Opt-in, éteint par défaut, non clinique."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alternative di livello scientifico / ritocchi di precisione. Su attivazione, disattivate per impostazione predefinita, non cliniche."
           }
         },
         "pt-PT": {
@@ -136567,6 +137391,12 @@
             "value": "Redémarrer %1$@ ? Il se déconnecte pendant environ 30 secondes pendant qu'il redémarre, puis se reconnecte seul. Vos données enregistrées sont conservées."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riavviare %@? Si disconnetterà per circa 30 secondi durante il riavvio, poi si ricollegherà automaticamente. I dati registrati vengono conservati."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -136617,6 +137447,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Redémarrer la sangle..."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riavvia fascia…"
           }
         },
         "pt-PT": {
@@ -136671,6 +137507,12 @@
             "value": "Redémarrer cette sangle ?"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riavviare questa fascia?"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -136721,6 +137563,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Redémarré lors de votre recalibrage du %@ — inutile d'appuyer à nouveau."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riavviato quando hai ricalibrato il %@ — non serve toccarlo di nuovo."
           }
         },
         "pt-PT": {
@@ -138249,6 +139097,12 @@
             "value": "Annule chaque bloc de réveil marqué pour de vraies preuves de se lever (cadence de marche, un changement de position du corps) au lieu d'une simple élévation du rythme cardiaque. Un bloc de réveil sans locomotion et une posture stable — une nuit chaude, un bref retournement — est replié dans un sommeil léger; un vrai réveil est laissé seul. Auto-vérifie combien de détails de mouvement votre sangle a effectivement enregistré et reste en dehors sur une nuit qui est trop clairsemée pour faire confiance (ancien firmware WHOOP 4.0, principalement). Off par défaut; prend effet les nuits suivantes mis en scène."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esamina ogni blocco di veglia con punteggio alla ricerca di prove reali che ti sei alzato (cadenza di camminata, un cambio di posizione del corpo) invece di un semplice aumento della frequenza cardiaca. Un blocco di veglia senza spostamenti e con postura stabile — una notte calda, un breve cambio di lato — viene riclassificato come sonno leggero; un vero risveglio con alzata resta invariato. Verifica da solo quanti dettagli di movimento ha realmente registrato la tua fascia e resta disattivato nelle notti con dati troppo scarsi per essere affidabili (soprattutto firmware WHOOP 4.0 meno recenti). Disattivato per impostazione predefinita; ha effetto sulle prossime notti elaborate."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -139465,6 +140319,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Exécute le flux continu de VFC seulement pendant votre fenêtre d'heures tranquilles (22:00–07:00 par défaut), réduisant de moitié le coût de la batterie. Les lectures de stress diurne seront plus rares. Remarque: la capture continue de la VFC (y compris les siestes diurnes) est interrompue à l'extérieur de cette fenêtre. Pour les lectures de la VFC à la demande (y compris les siestes), utilisez le bouton \"Prenez une lecture de la VFC\" sur l'écran Live."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esegue il flusso HRV continuo solo durante la finestra delle ore di quiete (22:00–07:00 per impostazione predefinita), dimezzando circa il consumo di batteria. Le letture di Stress diurne saranno più rade. Nota: l'acquisizione HRV continua in background (inclusi i pisolini diurni) è sospesa al di fuori di questa finestra. Per letture HRV diurne su richiesta (inclusi i pisolini), usa il pulsante \"Esegui una lettura HRV\" nella schermata In diretta."
           }
         },
         "pt-PT": {
@@ -143839,6 +144699,12 @@
             "value": "Envoyer la sonde (lecture seule)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invia sonda (sola lettura)"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -143883,6 +144749,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Envoie la commande en lecture seule GET_BODY_LOCATION_AND_STATUS (0x54) et affiche la réponse brute complète du bracelet, en décodant l'enregistrement (révision / position / confiance / état) sur la WHOOP 4.0. Rien n'est écrit sur le bracelet, et la détection de port ou la notation ne sont jamais modifiées."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invia il comando in sola lettura GET_BODY_LOCATION_AND_STATUS (0x54) e mostra la risposta grezza completa della fascia, decodificando il record della posizione sul corpo (revisione / posizione / confidenza / stato) su WHOOP 4.0. Nulla viene scritto sulla fascia e non modifica mai il rilevamento di indossamento né i punteggi."
           }
         },
         "pt-PT": {
@@ -145720,6 +146592,12 @@
             "value": "Afficher une carte Aujourd'hui vous rappelant de remplir votre journal"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra una scheda in Oggi che ti ricorda di compilare il diario"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -146268,64 +147146,6 @@
         }
       }
     },
-    "Shows your live heart rate on the Lock Screen and in the Dynamic Island while the strap is connected. Turn it off to keep your live HR out of the Dynamic Island. (Any one already showing clears within a moment.)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Zeigt deine Live-Herzfrequenz auf dem Sperrbildschirm und in der Dynamic Island, während der Strap verbunden ist. Schalte es aus, um deine Live-HF aus der Dynamic Island fernzuhalten. (Eine bereits angezeigte verschwindet gleich darauf.)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Muestra tu frecuencia cardíaca en vivo en la pantalla de bloqueo y en la Dynamic Island mientras la pulsera está conectada. Desactívalo para mantener tu FC en vivo fuera de la Dynamic Island. (Cualquiera que ya se muestre desaparece en un momento.)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Affiche votre fréquence cardiaque en direct sur l'écran verrouillé et dans la Dynamic Island tant que le bracelet est connecté. Désactivez-la pour garder votre FC en direct hors de la Dynamic Island. (Toute FC déjà affichée disparaît sous peu.)"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostra la tua frequenza cardiaca in diretta sulla schermata di blocco e nella Dynamic Island mentre la fascia è connessa. Disattivalo per tenere la tua FC in diretta fuori dalla Dynamic Island. (Quella eventualmente già mostrata sparisce in un attimo.)"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostra a tua frequência cardíaca em direto no ecrã de bloqueio e na Ilha Dinâmica enquanto a bracelete está ligada. Desligue-o para manter o teu RH ativo fora da Ilha Dinâmica. (Qualquer um que já esteja a aparecer será eliminado daqui a pouco.)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Показывает ваш текущий пульс на заблокированном экране и в Dynamic Island, пока браслет подключён. Отключите, чтобы пульс не отображался в Dynamic Island. (Уже показанный индикатор исчезнет через мгновение.)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在手环连接期间，于锁定屏幕和灵动岛上显示你的实时心率。将它关闭可让你的实时心率不出现在灵动岛中。（任何已在显示的都会在片刻内清除。）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "在手環連接期間，於鎖定畫面和動態島上顯示你的即時心率。將它關閉可讓你的即時心率不出現在動態島中。（任何已在顯示的都會在片刻內清除。）"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pokazuje Twoje tętno na żywo na ekranie blokady i na Dynamic Island, gdy pasek jest podłączony. Wyłącz tę opcję, aby Twoje tętno na żywo nie znajdowało się poza dynamiczną wyspą. (Każdy, kto już pokazał, znika w ciągu chwili.)"
-          }
-        }
-      }
-    },
     "Signal Trust": {
       "localizations": {
         "de": {
@@ -146518,6 +147338,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Entraînement silence-première sangle pendant les séances d'entraînement."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coaching dalla fascia durante gli allenamenti, con il silenzio come priorità."
           }
         },
         "pt-PT": {
@@ -149187,6 +150013,12 @@
             "value": "Stade de sommeil (V2)"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fasi del sonno (V2)"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -149405,6 +150237,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le rythme cardiaque dormant toute la nuit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Frequenza cardiaca durante il sonno nel corso della notte"
           }
         },
         "pt-PT": {
@@ -149695,6 +150533,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Lentifie le sangle de fond (toutes les 45 min au lieu de 15) tandis que la batterie de votre sangle est basse. Aucune perte de données — la sangle accumule tout, donc synchronise juste les lots dans des tirages plus grands et moins fréquents."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rallenta la sincronizzazione in background della fascia (ogni 45 min invece di 15) quando la batteria della fascia è scarica. Nessuna perdita di dati — la fascia conserva tutto, quindi la sincronizzazione raggruppa semplicemente i dati in trasferimenti più grandi e meno frequenti."
           }
         },
         "ru": {
@@ -150925,6 +151769,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Tuiles carrées avec un graphique de tendance sous la barre."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Riquadri più quadrati con un grafico dell'andamento sotto la barra."
           }
         },
         "ru": {
@@ -154577,6 +155427,12 @@
             "value": "Objectif d'effort"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obiettivo di carico"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -155999,6 +156855,12 @@
             "value": "Série"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Serie"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -157328,6 +158190,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Suppléments"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integratori"
           }
         },
         "pt-PT": {
@@ -160561,6 +161429,12 @@
             "value": "Touchez un jour pour le compléter"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca un giorno per recuperare"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -160669,6 +161543,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Appuyez sur une scène pour comparer avec votre typique de 30 jours."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tocca una fase per confrontarla con il tuo valore tipico a 30 giorni."
           }
         },
         "pt-PT": {
@@ -161785,6 +162665,12 @@
             "value": "C'est pourquoi une charge basée uniquement sur la montre commence par « Calibration en cours ». NOOP a besoin d'environ sept nuits de votre VFC pour apprendre ce qui est normal pour vous. Tant qu'il ne les a pas, il retient le score plutôt que de deviner. Une fois la référence établie, votre charge apparaît avec sa confiance, sur la même échelle de 0 à 100 que celle d'un bracelet."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ecco perché una Carica solo da orologio parte da “Calibrazione”. NOOP ha bisogno di circa sette notti della tua HRV per capire cosa è normale per te. Finché non le ha, non mostra il punteggio invece di tirare a indovinare. Una volta stabilita la linea di base, la tua Carica appare con il suo livello di affidabilità, sulla stessa scala 0-100 di quella di una fascia."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -161951,6 +162837,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le cadre de redémarrage WHOOP 4.0 n'est pas confirmé – un redémarrage normal est ignoré (#235). Envoyez chaque candidat et regardez les deux logs et la sangle elle-même. Il n'y a pas de déconnexion dans les 12s. Une ligne de lien a été déposée, ce qui signifie que le cadre a atteint la sangle — mais une seule liaison n'est pas un redémarrage: un véritable redémarrage a également éteint la lumière du capteur de la sangle pendant quelques secondes, donc si la lumière est restée sur elle était juste une connexion abandonnée, pas un redémarrage. Non destructive — vos données sont conservées. S'il vous plaît partager le journal afin que nous puissions épingler le cadre réel."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il frame di riavvio di WHOOP 4.0 non è confermato — un normale Riavvio viene ignorato (#235). Invia ogni candidato e osserva SIA il log della fascia SIA la fascia stessa. “no disconnect within 12s” significa che la fascia ha ignorato il frame. Una riga “link dropped” significa che il frame ha raggiunto la fascia — ma un collegamento interrotto da solo non è un riavvio: un vero riavvio spegne anche la luce del sensore della fascia per qualche secondo, quindi se la luce è rimasta accesa si è trattato solo di una connessione interrotta, non di un riavvio. Non distruttivo — i tuoi dati vengono conservati. Condividi il log così possiamo individuare il frame reale."
           }
         },
         "pt-PT": {
@@ -162237,6 +163129,12 @@
             "value": "La variation par rapport à votre fréquence cardiaque à la fin de l’exercice. Une valeur positive indique que la fréquence cardiaque a baissé ; un tiret signifie que le bracelet n’a pas enregistré assez de données autour de cette minute."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La variazione rispetto alla frequenza cardiaca alla fine dell'esercizio. Valori positivi indicano che la frequenza cardiaca è scesa; un trattino indica che la fascia non ha registrato dati sufficienti attorno a quel minuto."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -162397,6 +163295,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "La ligne représente l'indice 0–3 de chaque heure éveillée, noté par rapport à vos propres heures calmes d'aujourd'hui. La barre ci-dessous répartit votre journée en temps de stress calme, modéré et élevé."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La linea è l'indicatore 0-3 di ogni ora di veglia, calcolato rispetto alle tue ore tranquille di oggi. La barra sotto divide la giornata in tempo calmo, di stress moderato e di stress alto."
           }
         },
         "pt-PT": {
@@ -162919,6 +163823,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "La sangle continue de signaler une autre heure que NOOP envoie, de sorte que son alarme firmware ne tire pas à votre réveil — généralement une sangle dont l'horloge ou l'alarme a réinitialisé. Réinitialisez la sangle dans l'application officielle WHOOP (ou chargez-la complètement et reconnectez-la), et gardez l'alarme de votre téléphone pendant votre réveil jusqu'à ce qu'il prenne."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La fascia continua a segnalare un orario diverso da quello inviato da NOOP, quindi la sveglia del firmware non suonerà all'orario di sveglia — di solito si tratta di una fascia il cui orologio o la cui sveglia si sono reimpostati. Reimposta la fascia nell'app ufficiale WHOOP (oppure caricala completamente e ricollegala) e usa la sveglia dell'app Orologio del telefono finché non funziona."
           }
         },
         "pt-PT": {
@@ -165170,6 +166080,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Cela déplace la nuit à une heure sans données enregistrées. Les étapes ne peuvent pas être dérivées là, donc il peut apparaître comme vide jusqu'à ce que les données le couvrent."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Questo sposta la notte in un orario senza dati registrati. Lì non è possibile ricavare le fasi, quindi potrebbe apparire vuota finché non ci saranno dati."
           }
         },
         "ru": {
@@ -167702,6 +168618,12 @@
             "value": "Aujourd'hui, %1$@"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Oggi, %@"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -169182,6 +170104,12 @@
             "value": "Tableaux de tendances"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grafici degli andamenti"
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -169284,6 +170212,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Fenêtre de tendance"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finestra degli andamenti"
           }
         },
         "pt-PT": {
@@ -170174,6 +171108,12 @@
             "value": "Activez les notifications pour NOOP dans Paramètres pour obtenir votre rappel de liquidation."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attiva le notifiche per NOOP in Impostazioni per ricevere il promemoria di rilassamento serale."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -170224,6 +171164,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Deux tables de protocole indépendantes divergent sur l'opcode de batterie étendue (98 contre 87). Ceci envoie le 98 curé en lecture seule et affiche la réponse brute complète du bracelet. Une charge de type batterie confirme 98 sur votre firmware ; un stub court le laisse ambigu. Rien n'est écrit sur le bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Due tabelle di protocollo indipendenti non concordano sull'opcode della batteria estesa (98 vs 87). Questo invia il comando curato in sola lettura 98 e mostra la risposta grezza completa della fascia. Un payload di tipo batteria conferma 98 sul tuo firmware; una risposta breve significa che resta ambiguo. Nulla viene scritto sulla fascia."
           }
         },
         "pt-PT": {
@@ -170508,6 +171454,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Annuler"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annulla"
           }
         },
         "ru": {
@@ -171455,6 +172407,12 @@
             "value": "Utilisez-le uniquement avec un appareil qui vous appartient, pour lire vos propres données. L'utiliser ou non (et tout effet sur votre compte WHOOP, votre abonnement, votre appareil ou votre garantie) est votre décision, et votre risque seul."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usalo solo con un dispositivo di tua proprietà, per leggere i tuoi dati. Decidere se usarlo (e qualsiasi effetto sul tuo account WHOOP, abbonamento, dispositivo o garanzia) spetta a te, e il rischio è solo tuo."
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -171674,6 +172632,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Utiliser NOOP peut enfreindre les conditions d'utilisation de WHOOP"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'uso di NOOP potrebbe violare i Termini di servizio di WHOOP"
           }
         },
         "ru": {
@@ -173316,6 +174280,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sonde de redémarrage WHOOP 4.0"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda riavvio WHOOP 4.0"
           }
         },
         "ru": {
@@ -175111,6 +176081,12 @@
             "value": "En attente de la réponse du bracelet…"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In attesa della risposta della fascia…"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -176265,6 +177241,12 @@
             "value": "Nous comparons votre fréquence cardiaque au repos et votre VFC du jour à votre propre référence sur 30 jours. Une FC au repos plus élevée que d'habitude et une VFC plus basse que d'habitude font toutes deux monter le score, des signes classiques d'un corps activé. Le changement combiné est reporté sur une échelle de 0 à 3 : 0 est calme, 1,5 correspond à votre référence, 3 est très activé."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confrontiamo la FC a riposo e la HRV di oggi con la tua linea di base personale a 30 giorni. Una FC a riposo più alta del solito e una HRV più bassa del solito fanno entrambe salire il punteggio, segni classici di un corpo attivato. Lo spostamento combinato viene riportato su una scala 0-3: 0 è calmo, 1,5 corrisponde alla tua linea di base, 3 è molto attivato."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -176791,6 +177773,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Portez la sangle toute la nuit pour marquer une nuit en premier."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indossa la fascia durante la notte per ottenere prima il punteggio di una notte."
           }
         },
         "pt-PT": {
@@ -179033,6 +180021,12 @@
             "value": "Lorsque NOOP reconstitue la fréquence cardiaque à partir de la forme d'onde optique WHOOP 5/MG v26 (les secondes où la sangle n'a pas de HR), raffiner le pic d'autocorrélation avec un sous-lag parabolique afin que l'estimation ne soit pas quantifiée à environ 16 bpm pas près d'un HR élevé. Il ne remplit que des secondes que la sangle n'a jamais signalé; il ne remplace jamais un HR stocké. 5/MG seulement, désactivé par défaut."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quando NOOP ricostruisce la frequenza cardiaca dalla forma d'onda ottica v26 di WHOOP 5/MG (i secondi in cui la fascia non ha memorizzato la FC), affina il picco di autocorrelazione con un fit parabolico sub-lag, così la stima non viene quantizzata a passi di circa 16 bpm vicino a una FC elevata. Riempie solo i secondi che la fascia non ha mai riportato; non sovrascrive mai una FC memorizzata. Solo 5/MG, disattivato per impostazione predefinita."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -179916,6 +180910,12 @@
             "value": "Quand la batterie de votre bracelet est basse, arrêtez le flux de VFC en arrière-plan, ce qui sollicite le plus votre bracelet. Un écran Live affiche toujours la fréquence cardiaque, et il recommence automatiquement une fois le bracelet chargé."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quando la batteria della fascia è scarica, interrompe il flusso HRV in background sempre attivo — il maggiore consumo continuo della fascia. La schermata In diretta mostra comunque la frequenza cardiaca, e il flusso si riattiva automaticamente quando la fascia è carica."
+          }
+        },
         "ru": {
           "stringUnit": {
             "state": "translated",
@@ -179960,6 +180960,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Toute la nuit est la mesure par défaut de NOOP; Le sommeil profond met en commun la VFC sur le sommeil à ondes lentes uniquement, en lisant plus bas et correspondant à WHOOP. Un changement recalcule vos dernières nuits sur la nouvelle fenêtre et prend effet dès que vous avez quelques nuits de données."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notte intera è la misura predefinita di NOOP; Sonno profondo aggrega la HRV solo sul sonno a onde lente, con valori più bassi e in linea con WHOOP. Cambiare ricalcola i punteggi delle notti recenti sulla nuova finestra e ha effetto subito, non appena hai qualche notte di dati."
           }
         },
         "ru": {
@@ -183393,6 +184399,12 @@
             "value": "Vous avez atteint votre objectif d'effort optimal du jour de %lld. Bravo — votre récupération l'a permis."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hai raggiunto l'obiettivo di carico ottimale di oggi di %lld. Ottimo lavoro — il tuo recupero te lo ha permesso."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -183831,60 +184843,60 @@
         }
       }
     },
-    "Your WHOOP 5/MG won't arm this until Experimental mode is on (Settings, Experimental). Right now your wake time is saved but the strap is NOT armed. Even with Experimental on, a 5/MG strap-driven wake is still unconfirmed on our side, so keep a backup alarm.": {
+    "WHOOP 5/MG strap alarms require Protocol probes (Test Centre → 5/MG protocol diagnostics). Your wake time is saved, but the strap is not armed yet. Keep a backup alarm.": {
       "localizations": {
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Dein WHOOP 5/MG stellt das erst scharf, wenn der Experimentell-Modus an ist (Einstellungen, Experimentell). Gerade ist deine Aufwachzeit gespeichert, aber der Strap ist NICHT scharfgestellt. Selbst mit Experimentell an ist ein 5/MG-Strap-gesteuertes Wecken unsererseits noch unbestätigt, also halte einen Ersatzwecker bereit."
+            "value": "WHOOP 5/MG-Strapalarme benötigen Protokolltests (Testcenter → 5/MG-Protokolldiagnose). Deine Weckzeit ist gespeichert, aber der Strap ist noch nicht scharfgestellt. Behalte einen Ersatzwecker."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tu WHOOP 5/MG no armará esto hasta que actives el modo experimental (Ajustes, Experimental). Ahora mismo tu hora de despertar está guardada pero la pulsera NO está armada. Incluso con Experimental activado, el despertar desde una pulsera 5/MG sigue sin confirmarse de nuestro lado, así que mantén una alarma de respaldo."
+            "value": "Las alarmas de la pulsera WHOOP 5/MG requieren Sondas de protocolo (Centro de pruebas → Diagnóstico del protocolo 5/MG). La hora de despertar está guardada, pero la pulsera aún no está armada. Mantén una alarma de respaldo."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Votre WHOOP 5/MG n'armera pas cette fonction tant que le mode expérimental n'est pas activé (Paramètres, Expérimental). Pour l'instant, votre heure de réveil est enregistrée mais le bracelet n'est PAS armé. Même avec le mode expérimental activé, un réveil piloté par un bracelet 5/MG reste non confirmé de notre côté, gardez donc une alarme de secours."
+            "value": "Les alarmes du bracelet WHOOP 5/MG nécessitent Sondes de protocole (Centre de test → Diagnostics du protocole 5/MG). L’heure de réveil est enregistrée, mais le bracelet ne porte pas encore une alarme active. Gardez une alarme de secours."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Il tuo WHOOP 5/MG non attiverà questa funzione finché la modalità Sperimentale non è attiva (Impostazioni, Sperimentale). Per ora l'ora di sveglia è salvata ma la fascia NON è armata. Anche con la modalità Sperimentale attiva, una sveglia gestita dalla fascia 5/MG non è ancora confermata da parte nostra, quindi tieni una sveglia di riserva."
+            "value": "Le sveglie sulla fascia WHOOP 5/MG richiedono Sonde di protocollo (Centro test → Diagnostica protocollo 5/MG). L’ora di sveglia è salvata, ma la fascia non è ancora armata. Tieni una sveglia di riserva."
           }
         },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
-            "value": "O teu WHOOP 5/MG não armará isto até que o modo Experimental esteja activado (Definições, Experimental). Neste momento, o teu horário de despertar está guardado, mas a bracelete NÃO está armada. Mesmo com o Experimental ativado, um rasto acionado pelo cinto 5/MG ainda não está confirmado do nosso lado, por isso mantenha um alarme de reserva."
+            "value": "Os alarmes da pulseira WHOOP 5/MG requerem Sondas de protocolo (Centro de testes → Diagnóstico do protocolo 5/MG). A hora de despertar está guardada, mas a pulseira ainda não está armada. Mantém um alarme de reserva."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ваш WHOOP 5/MG не активирует это, пока не включён экспериментальный режим (Настройки, Экспериментальный). Сейчас время пробуждения сохранено, но браслет НЕ активирован. Даже при включённом экспериментальном режиме пробуждение через браслет 5/MG пока не подтверждено с нашей стороны, поэтому держите резервный будильник."
+            "value": "Для будильника на браслете WHOOP 5/MG включите Пробы протокола (Тестовый центр → Диагностика протокола 5/MG). Время пробуждения сохранено, но будильник на браслете ещё не активирован. Оставьте резервный будильник."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在实验模式开启之前（设置，实验），你的 WHOOP 5/MG 不会设定此项。目前你的起床时间已保存，但手环尚未设定。即使开启了实验模式，由 5/MG 手环驱动的唤醒在我们这边仍未得到确认，因此请保留一个备用闹钟。"
+            "value": "WHOOP 5/MG 手环闹钟需要开启“协议探测”（测试中心 → 5/MG 协议诊断）。唤醒时间已保存，但手环闹钟尚未启用。请保留备用闹钟。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "在實驗模式開啟之前（設定，實驗），你的 WHOOP 5/MG 不會設定此項。目前你的起床時間已保存，但手環尚未設定。即使開啟了實驗模式，由 5/MG 手環驅動的喚醒在我們這邊仍未得到確認，因此請保留一個備用鬧鐘。"
+            "value": "WHOOP 5/MG 手環鬧鐘需要開啟「協定探測」（測試中心 → 5/MG 協定診斷）。喚醒時間已儲存，但手環鬧鐘尚未啟用。請保留備用鬧鐘。"
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Twój WHOOP 5/MG nie uzbroi tego, dopóki nie zostanie włączony tryb eksperymentalny (Ustawienia, Eksperyment). W tej chwili czas budzenia jest zapisany, ale pasek NIE jest uzbrojony. Nawet przy włączonym trybie eksperymentalnym budzenie napędzane paskiem 5/MG nadal nie jest potwierdzone z naszej strony, więc miej alarm zapasowy."
+            "value": "Alarm na opasce WHOOP 5/MG wymaga włączenia Testów protokołu (Centrum Testowe → Diagnostyka protokołu 5/MG). Godzina pobudki została zapisana, ale alarm na opasce nie jest jeszcze uzbrojony. Zachowaj alarm zapasowy."
           }
         }
       }
@@ -186036,6 +187048,12 @@
             "value": "Votre sangle n'accepte pas l'alarme"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La tua fascia non accetta la sveglia"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -186574,6 +187592,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Zone %1$lld: %2$lld-%3$lld bpm (%4$lld-%5$lld%% max HR)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zona %lld: %lld-%lld bpm (%lld-%lld%% FC max)"
           }
         },
         "pt-PT": {
@@ -187423,6 +188447,64 @@
           "stringUnit": {
             "state": "translated",
             "value": "powyżej wartości wyjściowej, wspierając powrót do zdrowia"
+          }
+        }
+      }
+    },
+    "above baseline, too small to change Charge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "über der Basislinie, Unterschied zu klein, um Charge zu verändern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por encima de tu línea base, diferencia demasiado pequeña para cambiar Charge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "au-dessus de la référence, écart trop faible pour modifier la Charge"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sopra la linea di base, differenza troppo piccola per modificare Charge"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "acima da linha de base, diferença demasiado pequena para alterar Charge"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "выше нормы, разница слишком мала, чтобы изменить Charge"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高于基线，但差异太小，无法改变充能（Charge）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高於基線，但差異太小，無法改變充能（Charge）"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "powyżej wartości wyjściowej, różnica zbyt mała, by zmienić Charge"
           }
         }
       }
@@ -188483,6 +189565,64 @@
         }
       }
     },
+    "below baseline, too small to change Charge": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "unter der Basislinie, Unterschied zu klein, um Charge zu verändern"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "por debajo de tu línea base, diferencia demasiado pequeña para cambiar Charge"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en dessous de la référence, écart trop faible pour modifier la Charge"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sotto la linea di base, differenza troppo piccola per modificare Charge"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "abaixo da linha de base, diferença demasiado pequena para alterar Charge"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ниже нормы, разница слишком мала, чтобы изменить Charge"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低于基线，但差异太小，无法改变充能（Charge）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "低於基線，但差異太小，無法改變充能（Charge）"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "poniżej wartości wyjściowej, różnica zbyt mała, by zmienić Charge"
+          }
+        }
+      }
+    },
     "bpm": {
       "localizations": {
         "de": {
@@ -189037,6 +190177,12 @@
             "value": "jour d'affilée"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "giorno di fila"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -189093,6 +190239,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "jours d'affilée"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "giorni di fila"
           }
         },
         "pt-PT": {
@@ -195916,6 +197068,238 @@
         }
       }
     },
+    "slightly above baseline, limiting recovery": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leicht über der Basislinie, bremst die Erholung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeramente por encima de tu línea base, limita la recuperación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "légèrement au-dessus de la référence, limite la récupération"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leggermente sopra la linea di base, limita il recupero"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeiramente acima da linha de base, limita a recuperação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "слегка выше нормы, ограничивает восстановление"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略高于基线，限制恢复"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略高於基線，限制恢復"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nieznacznie powyżej wartości wyjściowej, ogranicza regenerację"
+          }
+        }
+      }
+    },
+    "slightly above baseline, supporting recovery": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leicht über der Basislinie, stützt die Erholung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeramente por encima de tu línea base, favorece la recuperación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "légèrement au-dessus de la référence, favorise la récupération"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leggermente sopra la linea di base, favorisce il recupero"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeiramente acima da linha de base, apoia a recuperação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "слегка выше нормы, поддерживает восстановление"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略高于基线，有助于恢复"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略高於基線，有助於恢復"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nieznacznie powyżej wartości wyjściowej, wspiera regenerację"
+          }
+        }
+      }
+    },
+    "slightly below baseline, limiting recovery": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leicht unter der Basislinie, bremst die Erholung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeramente por debajo de tu línea base, limita la recuperación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "légèrement en dessous de la référence, limite la récupération"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leggermente sotto la linea di base, limita il recupero"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeiramente abaixo da linha de base, limita a recuperação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "слегка ниже нормы, ограничивает восстановление"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略低于基线，限制恢复"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略低於基線，限制恢復"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nieznacznie poniżej wartości wyjściowej, ogranicza regenerację"
+          }
+        }
+      }
+    },
+    "slightly below baseline, supporting recovery": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leicht unter der Basislinie, stützt die Erholung"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeramente por debajo de tu línea base, favorece la recuperación"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "légèrement en dessous de la référence, favorise la récupération"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "leggermente sotto la linea di base, favorisce il recupero"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ligeiramente abaixo da linha de base, apoia a recuperação"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "слегка ниже нормы, поддерживает восстановление"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略低于基线，有助于恢复"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "略低於基線，有助於恢復"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "nieznacznie poniżej wartości wyjściowej, wspiera regenerację"
+          }
+        }
+      }
+    },
     "slightly raised vs baseline": {
       "localizations": {
         "de": {
@@ -197392,6 +198776,12 @@
             "value": "typiquement %1$@"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "tipicamente %@"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -197912,6 +199302,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Historique v%1$lld"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "storico v%lld"
           }
         },
         "pt-PT": {
@@ -213438,6 +214834,12 @@
             "value": "Charge d'entraînement"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carico di allenamento"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -213482,6 +214884,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "CTL · Forme"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CTL · Forma fisica"
           }
         },
         "pt-PT": {
@@ -213530,6 +214938,12 @@
             "value": "ATL · Fatigue"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ATL · Fatica"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -213574,6 +214988,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Forme sur 42 jours vs fatigue sur 7 jours"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forma fisica a 42 giorni vs fatica a 7 giorni"
           }
         },
         "pt-PT": {
@@ -213622,6 +215042,12 @@
             "value": "En cours — %1$lld sur %2$lld jours"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In costruzione — %lld di %lld giorni"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -213666,6 +215092,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Charge chronique vs aiguë"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carico cronico vs acuto"
           }
         },
         "pt-PT": {
@@ -213714,6 +215146,12 @@
             "value": "Nécessite %1$lld+ jours consécutifs d'Effort pour démarrer. %2$lld jusqu'ici."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Servono almeno %lld giorni consecutivi di Sforzo per iniziare. Finora %lld."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -213760,6 +215198,12 @@
             "value": "Forme"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forma"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -213804,6 +215248,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Charge d'entraînement : chronique vs aiguë"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carico di allenamento: cronico vs acuto"
           }
         },
         "pt-PT": {
@@ -213858,6 +215308,12 @@
             "value": "Rafraîchissement réduit"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggiornamento ridotto"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -213908,6 +215364,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Synchronise en arrière-plan toutes les heures au lieu de toutes les 15 minutes, quelle que soit la charge du bracelet : moins de reconnexions, c'est la plus grosse économie sur une WHOOP 4.0. Rien n'est perdu : le bracelet enregistre tout et le transmet par lots plus importants. La synchro manuelle reste immédiate et la fréquence cardiaque en direct n'est pas affectée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizza in background ogni ora invece che ogni 15 minuti, qualunque sia la carica della fascia — ridurre le riconnessioni è il risparmio maggiore su WHOOP 4.0. Non si perde nulla: la fascia conserva tutto e lo trasferisce in blocchi più grandi. Trascina per sincronizzare funziona comunque subito, e la frequenza cardiaca in diretta non viene toccata."
           }
         },
         "pt-PT": {
@@ -213962,6 +215424,12 @@
             "value": "Économie d’énergie"
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risparmio energetico"
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -214014,6 +215482,12 @@
             "value": "Allégez la charge de votre bracelet quand sa batterie faiblit."
           }
         },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alleggerisci il carico sulla fascia quando la batteria si sta esaurendo."
+          }
+        },
         "pt-PT": {
           "stringUnit": {
             "state": "translated",
@@ -214064,6 +215538,12 @@
           "stringUnit": {
             "state": "translated",
             "value": "Le bracelet continue d’enregistrer ses données de son côté, donc rien n’est perdu — NOOP lui parle simplement moins souvent pour qu’il tienne jusqu’à la recharge."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La fascia continua a memorizzare i dati da sola, quindi non si perde nulla — NOOP comunica con lei meno spesso per farla durare finché non puoi caricarla."
           }
         },
         "pt-PT": {
@@ -214254,7 +215734,7 @@
     "5/MG PROTOCOL DIAGNOSTICS": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"5/MG-PROTOKOLLDIAGNOSE"}},"es":{"stringUnit":{"state":"translated","value":"DIAGNÓSTICO DEL PROTOCOLO 5/MG"}},"fr":{"stringUnit":{"state":"translated","value":"DIAGNOSTICS DU PROTOCOLE 5/MG"}},"pt-PT":{"stringUnit":{"state":"translated","value":"DIAGNÓSTICO DO PROTOCOLO 5/MG"}},"it":{"stringUnit":{"state":"translated","value":"DIAGNOSTICA PROTOCOLLO 5/MG"}},"pl":{"stringUnit":{"state":"translated","value":"DIAGNOSTYKA PROTOKOŁU 5/MG"}},"ru":{"stringUnit":{"state":"translated","value":"ДИАГНОСТИКА ПРОТОКОЛА 5/MG"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"5/MG 协议诊断"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"5/MG 協定診斷"}}}},
     "Developer tools for unmapped protocol features. None of these are required for normal WHOOP 5/MG recording, history sync, or the bounded Raw Data Collector.": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Entwicklerwerkzeuge für nicht zugeordnete Protokollfunktionen. Für normale Aufnahme, Verlauf und Rohdaten-Collector nicht erforderlich."}},"es":{"stringUnit":{"state":"translated","value":"Herramientas para funciones de protocolo sin asignar. No son necesarias para el uso normal."}},"fr":{"stringUnit":{"state":"translated","value":"Outils pour les fonctions de protocole non identifiées. Ils ne sont pas requis pour l’usage normal."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Ferramentas para funções de protocolo não identificadas. Não são necessárias para o uso normal."}},"it":{"stringUnit":{"state":"translated","value":"Strumenti per sviluppatori per funzioni di protocollo non mappate. Nessuno è necessario per la normale registrazione WHOOP 5/MG, la sincronizzazione della cronologia o il Raccoglitore dati grezzi."}},"pl":{"stringUnit":{"state":"translated","value":"Narzędzia deweloperskie do niezmapowanych funkcji protokołu. Żadne z nich nie są wymagane do zwykłego nagrywania WHOOP 5/MG, synchronizacji historii ani Kolektora danych surowych."}},"ru":{"stringUnit":{"state":"translated","value":"Инструменты разработчика для неразобранных функций протокола. Ничего из этого не требуется для обычной записи WHOOP 5/MG, синхронизации истории или Сборщика сырых данных."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"用于未映射协议功能的开发者工具。正常的 WHOOP 5/MG 记录、历史同步和原始数据采集器都不需要这些。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"用於未對應協定功能的開發者工具。正常的 WHOOP 5/MG 記錄、歷史同步與原始資料收集器都不需要這些。"}}}},
     "Protocol probes": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Protokolltests"}},"es":{"stringUnit":{"state":"translated","value":"Sondas de protocolo"}},"fr":{"stringUnit":{"state":"translated","value":"Sondes de protocole"}},"pt-PT":{"stringUnit":{"state":"translated","value":"Sondas de protocolo"}},"it":{"stringUnit":{"state":"translated","value":"Sonde di protocollo"}},"pl":{"stringUnit":{"state":"translated","value":"Sondy protokołu"}},"ru":{"stringUnit":{"state":"translated","value":"Пробы протокола"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"协议探测"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"協定探測"}}}},
-    "Sends experimental protocol queries and records the replies in the strap log.": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Sendet experimentelle Abfragen und protokolliert die Antworten."}},"es":{"stringUnit":{"state":"translated","value":"Envía consultas experimentales y registra las respuestas."}},"fr":{"stringUnit":{"state":"translated","value":"Envoie des requêtes expérimentales et consigne les réponses."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Envia consultas experimentais e regista as respostas."}},"it":{"stringUnit":{"state":"translated","value":"Invia query sperimentali e registra le risposte nel log della fascia."}},"pl":{"stringUnit":{"state":"translated","value":"Wysyła eksperymentalne zapytania protokołu i zapisuje odpowiedzi w dzienniku paska."}},"ru":{"stringUnit":{"state":"translated","value":"Отправляет экспериментальные запросы протокола и записывает ответы в журнал браслета."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"发送实验性协议查询，并将回复记录到手环日志中。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"傳送實驗性協定查詢，並將回覆記錄到手環日誌中。"}}}},
+    "Sends experimental protocol queries and records replies in the strap log. Also enables the experimental 5/MG strap alarm.": {"shouldTranslate":true,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Sendet experimentelle Protokollabfragen und protokolliert die Antworten im Strap-Log. Aktiviert auch den experimentellen 5/MG-Strapalarm."}},"es":{"stringUnit":{"state":"translated","value":"Envía consultas de protocolo experimentales y registra las respuestas en el registro de la pulsera. También habilita la alarma experimental de la pulsera 5/MG."}},"fr":{"stringUnit":{"state":"translated","value":"Envoie des requêtes de protocole expérimentales et consigne les réponses dans le journal du bracelet. Active aussi l’alarme expérimentale du bracelet 5/MG."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Envia consultas experimentais de protocolo e regista as respostas no diário da pulseira. Também ativa o alarme experimental da pulseira 5/MG."}},"it":{"stringUnit":{"state":"translated","value":"Invia richieste di protocollo sperimentali e registra le risposte nel log della fascia. Abilita anche la sveglia sperimentale della fascia 5/MG."}},"pl":{"stringUnit":{"state":"translated","value":"Wysyła eksperymentalne zapytania protokołu i zapisuje odpowiedzi w dzienniku opaski. Włącza też eksperymentalny alarm opaski 5/MG."}},"ru":{"stringUnit":{"state":"translated","value":"Отправляет экспериментальные запросы протокола и записывает ответы в журнал браслета. Также включает экспериментальный будильник браслета 5/MG."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"发送实验性协议查询并将回复记录到手环日志中。还会启用实验性的 5/MG 手环闹钟。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"傳送實驗性協定查詢並將回覆記錄到手環日誌中。也會啟用實驗性的 5/MG 手環鬧鐘。"}}}},
     "Broadcast heart rate from the strap": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Herzfrequenz vom Band übertragen"}},"es":{"stringUnit":{"state":"translated","value":"Transmitir frecuencia cardíaca desde la pulsera"}},"fr":{"stringUnit":{"state":"translated","value":"Diffuser la fréquence cardiaque du bracelet"}},"pt-PT":{"stringUnit":{"state":"translated","value":"Transmitir frequência cardíaca da bracelete"}},"it":{"stringUnit":{"state":"translated","value":"Trasmetti la frequenza cardiaca dalla fascia"}},"pl":{"stringUnit":{"state":"translated","value":"Nadawaj tętno z paska"}},"ru":{"stringUnit":{"state":"translated","value":"Транслировать пульс с браслета"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"从手环广播心率"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"從手環廣播心率"}}}},
     "Writes the reversible 5/MG advertising flag for Garmin, Zwift, and compatible gym equipment.": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Setzt das umkehrbare 5/MG-Werbe-Flag für kompatible Geräte."}},"es":{"stringUnit":{"state":"translated","value":"Activa el indicador reversible 5/MG para equipos compatibles."}},"fr":{"stringUnit":{"state":"translated","value":"Active l’indicateur réversible 5/MG pour les appareils compatibles."}},"pt-PT":{"stringUnit":{"state":"translated","value":"Ativa o indicador reversível 5/MG para equipamento compatível."}},"it":{"stringUnit":{"state":"translated","value":"Scrive il flag di advertising 5/MG reversibile per Garmin, Zwift e attrezzature da palestra compatibili."}},"pl":{"stringUnit":{"state":"translated","value":"Zapisuje odwracalną flagę rozgłaszania 5/MG dla Garmina, Zwifta i zgodnego sprzętu na siłowni."}},"ru":{"stringUnit":{"state":"translated","value":"Записывает обратимый флаг вещания 5/MG для Garmin, Zwift и совместимых тренажёров."}},"zh-Hans":{"stringUnit":{"state":"translated","value":"写入可撤销的 5/MG 广播标记，供 Garmin、Zwift 及兼容健身器材使用。"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"寫入可撤銷的 5/MG 廣播標記，供 Garmin、Zwift 及相容健身器材使用。"}}}},
     "Legacy R22 feature-flag experiment": {"shouldTranslate":false,"localizations":{"de":{"stringUnit":{"state":"translated","value":"Altes R22-Feature-Flag-Experiment"}},"es":{"stringUnit":{"state":"translated","value":"Experimento antiguo de indicadores R22"}},"fr":{"stringUnit":{"state":"translated","value":"Ancienne expérience d’indicateurs R22"}},"pt-PT":{"stringUnit":{"state":"translated","value":"Experiência antiga de indicadores R22"}},"it":{"stringUnit":{"state":"translated","value":"Vecchio esperimento con i flag R22"}},"pl":{"stringUnit":{"state":"translated","value":"Dawny eksperyment z flagami R22"}},"ru":{"stringUnit":{"state":"translated","value":"Старый эксперимент с флагами R22"}},"zh-Hans":{"stringUnit":{"state":"translated","value":"旧的 R22 功能标记实验"}},"zh-Hant":{"stringUnit":{"state":"translated","value":"舊的 R22 功能標記實驗"}}}},
@@ -216134,6 +217614,9 @@
         } },
         "no time of its own": { "localizations": {
           "de": {"stringUnit": {"state": "translated", "value": "keine eigene Zeit"}}, "es": {"stringUnit": {"state": "translated", "value": "sin hora propia"}}, "fr": {"stringUnit": {"state": "translated", "value": "pas d'heure propre"}}, "it": {"stringUnit": {"state": "translated", "value": "nessun orario proprio"}}, "pl": {"stringUnit": {"state": "translated", "value": "brak własnej godziny"}}, "pt-PT": {"stringUnit": {"state": "translated", "value": "sem hora própria"}}, "ru": {"stringUnit": {"state": "translated", "value": "без своего времени"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "没有单独时间"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "沒有單獨時間"}}
+        } },
+        "Update key": { "localizations": {
+          "de": {"stringUnit": {"state": "translated", "value": "Schlüssel aktualisieren"}}, "es": {"stringUnit": {"state": "translated", "value": "Actualizar clave"}}, "fr": {"stringUnit": {"state": "translated", "value": "Mettre à jour la clé"}}, "it": {"stringUnit": {"state": "translated", "value": "Aggiorna chiave"}}, "pl": {"stringUnit": {"state": "translated", "value": "Zaktualizuj klucz"}}, "pt-PT": {"stringUnit": {"state": "translated", "value": "Atualizar chave"}}, "ru": {"stringUnit": {"state": "translated", "value": "Обновить ключ"}}, "zh-Hans": {"stringUnit": {"state": "translated", "value": "更新密钥"}}, "zh-Hant": {"stringUnit": {"state": "translated", "value": "更新密鑰"}}
         } }
   },
   "version": "1.0"

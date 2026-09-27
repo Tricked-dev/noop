@@ -1,6 +1,7 @@
 #if os(iOS)
 import Foundation
 import HealthKit
+import WhoopProtocol
 import CoreLocation
 import UIKit
 import WhoopStore
@@ -117,6 +118,7 @@ final class HealthKitBridge: ObservableObject {
         }
         if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { s.insert(sleep) }
         s.insert(HKObjectType.workoutType())
+        s.insert(HKSeriesType.workoutRoute())
         return s
     }
 
@@ -1435,7 +1437,34 @@ final class HealthKitBridge: ObservableObject {
                 }
                 if !extras.isEmpty { try await builder.addSamples(extras) }
                 try await builder.endCollection(at: end)
-                _ = try await builder.finishWorkout()
+                let workout = try await builder.finishWorkout()
+
+                // #2340: workout route write-back. Load the encoded polyline and its original point
+                // measurements from the Apple-only side-store and attach them to the finished workout.
+                // We only do this if the workout type supports a distance (GPS) route.
+                if let workout,
+                   Self.distanceTypeId(forSport: row.sport) != nil,
+                   store.authorizationStatus(for: HKSeriesType.workoutRoute()) == .sharingAuthorized,
+                   let route = RouteStore.loadWithPoints(startTs: row.startTs, sport: row.sport),
+                   !route.polyline.isEmpty,
+                   route.hasExportableMeasurements,
+                   let points = route.points {
+                    let routeBuilder = HKWorkoutRouteBuilder(healthStore: store, device: .local())
+                    do {
+                        let locs = points.map { point in
+                            CLLocation(coordinate: CLLocationCoordinate2D(latitude: point.lat, longitude: point.lon),
+                                       altitude: 0, horizontalAccuracy: point.accuracyM, verticalAccuracy: -1,
+                                       timestamp: Date(timeIntervalSince1970: Double(point.tMs) / 1000))
+                        }
+                        try await routeBuilder.insertRouteData(locs)
+                        try await routeBuilder.finishRoute(with: workout, metadata: nil)
+                    } catch {
+                        // Route is optional enrichment. Discard its uncommitted series and retain the workout.
+                        routeBuilder.discard()
+                        // HealthKit route attachment failures are intentionally silent: writeBack's
+                        // lastError describes workout/sync failures, while this enrichment can safely be retried.
+                    }
+                }
             } catch {
                 builder.discardWorkout()
                 throw error
@@ -1704,31 +1733,12 @@ final class HealthKitBridge: ObservableObject {
         // with each workout; they cannot be read inside the sample query's completion handler
         // (HealthKit does not allow nested queries on the same store), so we hold the workouts and
         // fetch routes in a second pass below.
-        let workoutsAndRows: [(HKWorkout, WorkoutRow)] = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<[(HKWorkout, WorkoutRow)], Error>) in
+        let workoutsAndRows: [HKWorkout] = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<[HKWorkout], Error>) in
             let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
             let q = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: predicate,
                                   limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, error in
                 if let error { cont.resume(throwing: error); return }
-                var pairs: [(HKWorkout, WorkoutRow)] = []
-                for case let workout as HKWorkout in samples ?? [] {
-                    let startTs = Int(workout.startDate.timeIntervalSince1970)
-                    let endTs = max(Int(workout.endDate.timeIntervalSince1970), startTs)
-                    let duration = workout.duration > 0 ? workout.duration : Double(endTs - startTs)
-                    pairs.append((workout, WorkoutRow(
-                        startTs: startTs,
-                        endTs: endTs,
-                        sport: Self.sportName(workout.workoutActivityType),
-                        source: HealthKitBridge.appleWorkoutSource,
-                        durationS: duration,
-                        energyKcal: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
-                        avgHr: nil,
-                        maxHr: nil,
-                        strain: nil,
-                        distanceM: workout.totalDistance?.doubleValue(for: .meter()),
-                        zonesJSON: nil,
-                        notes: nil, steps: nil)))
-                }
-                cont.resume(returning: pairs)
+                cont.resume(returning: (samples ?? []).compactMap { $0 as? HKWorkout })
             }
             store.execute(q)
         }
@@ -1741,25 +1751,159 @@ final class HealthKitBridge: ObservableObject {
         // 500-workout first import would decode and re-encode a 400-entry map 500 times, on the order of
         // a gigabyte of JSON through UserDefaults. `storeAll` applies the same eviction, once.
         var importedRoutes: [(route: WorkoutRoute, startTs: Int, sport: String)] = []
-        for (workout, row) in workoutsAndRows {
+        for workout in workoutsAndRows {
             if let route = await Self.fetchWorkoutRoute(for: workout, store: store),
                route.count >= 2 {
-                let polyline = RouteMath.encode(route)
-                let distanceM = RouteMath.totalMeters(route)
-                importedRoutes.append((WorkoutRoute(polyline: polyline, distanceM: distanceM),
-                                       row.startTs, row.sport))
+                let latLngs = route.map { RouteMath.LatLng($0.lat, $0.lon) }
+                let polyline = RouteMath.encode(latLngs)
+                let distanceM = RouteMath.totalMeters(latLngs)
+                importedRoutes.append((WorkoutRoute(polyline: polyline, distanceM: distanceM, points: route),
+                                       Int(workout.startDate.timeIntervalSince1970),
+                                       Self.sportName(workout.workoutActivityType)))
             }
         }
         RouteStore.storeAll(importedRoutes)
-        return workoutsAndRows.map { $0.1 }
+        let profile = repo.strainProfile
+        var rows: [WorkoutRow] = []
+        rows.reserveCapacity(workoutsAndRows.count)
+        for workout in workoutsAndRows {
+            let startTs = Int(workout.startDate.timeIntervalSince1970)
+            let endTs = max(Int(workout.endDate.timeIntervalSince1970), startTs)
+            let appleSamples = await Self.fetchWorkoutHeartRate(for: workout, store: store)
+            let steps = await Self.fetchWorkoutSteps(for: workout, store: store)
+            // Prefer the HR stream HealthKit associates with this workout (for example, Apple Watch).
+            // If that stream is absent or too sparse to score, fall back to the locally stored strap
+            // trace for this exact workout window — the same trace that backs the detail chart.
+            //
+            // ONE stream answers the whole row. The streams are never merged, which would double-count
+            // overlapping beats, and they are never split across fields either: a mean from the watch
+            // beside an Effort integrated from the strap are two readings of one session that a wearer
+            // cannot reconcile, and with no watch beats at all it would print an Effort with no heart
+            // rate to account for it. So when the fallback is what scores the session, it reports that
+            // session's mean and peak too.
+            var samples = appleSamples
+            var effort = profile.flatMap { Self.scoredEffort(appleSamples, profile: $0) }
+            if effort == nil, let profile {
+                let hrDeviceIds = Repository.workoutHrDeviceIds(
+                    source: Self.appleWorkoutSource,
+                    activeStrapId: repo.deviceId,
+                    importedIds: repo.importedReadIds)
+                let strapSamples = await repo.hrSamples(deviceIds: hrDeviceIds,
+                                                        from: startTs, to: endTs,
+                                                        limit: 20_000)
+                if let strapEffort = Self.scoredEffort(strapSamples, profile: profile) {
+                    effort = strapEffort
+                    samples = strapSamples
+                }
+            }
+            // Two gates, not one. A mean and a peak are readable from any beat the answering stream
+            // carries, so they are reported whenever there are samples, which is what `WorkoutSource`
+            // already does for a merged workout (`hrWeight > 0 ? … : nil`, no sample floor) rather than a
+            // threshold invented here. EFFORT is the number that needs coverage: it integrates time in
+            // zones, and a handful of beats over a few minutes would score a session never measured.
+            //
+            // Sharing one threshold meant a 15-sample, 8-minute workout with perfectly good heart rate
+            // showed blank Avg and Max as well as blank Effort. It also meant a wearer with NO strain
+            // profile got no heart rate at all from an import, because the old guard opened on
+            // `guard let profile`: avg and max never needed one. Both still hold: when neither stream can
+            // score an Effort, the watch's beats still answer the mean and peak.
+            let heartRate: (avg: Int, peak: Int)? = {
+                guard !samples.isEmpty else { return nil }
+                let mean = Int((Double(samples.reduce(0) { $0 + $1.bpm }) / Double(samples.count)).rounded())
+                return (mean, samples.map(\.bpm).max() ?? mean)
+            }()
+            rows.append(WorkoutRow(
+                startTs: startTs, endTs: endTs,
+                sport: Self.sportName(workout.workoutActivityType),
+                source: HealthKitBridge.appleWorkoutSource,
+                durationS: workout.duration > 0 ? workout.duration : Double(endTs - startTs),
+                energyKcal: workout.totalEnergyBurned?.doubleValue(for: .kilocalorie()),
+                avgHr: heartRate?.avg, maxHr: heartRate?.peak, strain: effort,
+                distanceM: workout.totalDistance?.doubleValue(for: .meter()),
+                zonesJSON: nil, notes: nil, steps: steps))
+        }
+        return rows
     }
 
-    /// #1205: fetch the GPS route (list of `RouteMath.LatLng`) for a single `HKWorkout`.
+    /// Beats an imported workout must carry before its EFFORT is scored.
+    ///
+    /// Effort integrates time in heart-rate zones, so it needs a session actually measured rather than a
+    /// few beats sampled from one. Avg and Max deliberately do NOT sit behind this: they are honest at
+    /// any sample count, and gating them here left workouts blank that HealthKit could answer.
+    private static let effortMinimumSamples = 20
+
+    /// Seconds an imported workout's beats must span before its EFFORT is scored. See
+    /// [effortMinimumSamples]; twenty beats crowded into a minute is not ten minutes of measurement.
+    private static let effortMinimumSpanSeconds = 600
+
+    /// Score a workout only when its source stream has enough independent coverage to represent the
+    /// session. Used first for HealthKit-associated HR and then for the WHOOP fallback; source samples
+    /// are intentionally never combined.
+    private static func scoredEffort(_ samples: [HRSample],
+                                     profile: Repository.StrainProfile) -> Double? {
+        guard let first = samples.first, let last = samples.last,
+              samples.count >= effortMinimumSamples,
+              last.ts - first.ts >= effortMinimumSpanSeconds else { return nil }
+        return StrainScorer.strain(samples, maxHR: profile.hrMax,
+                                   method: PuffinExperiment.effortMethod,
+                                   sex: profile.sex)
+    }
+
+    /// HealthKit has no direct step-count property on HKWorkout; query step samples for its time window.
+    /// Return nil on query failure or no usable samples, preserving "unknown" rather than reporting zero.
+    nonisolated private static func fetchWorkoutSteps(for workout: HKWorkout,
+                                                       store: HKHealthStore) async -> Int? {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .stepCount) else { return nil }
+        let predicate = HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate,
+                                                     options: .strictStartDate)
+        return await withCheckedContinuation { (cont: CheckedContinuation<Int?, Never>) in
+            let query = HKStatisticsQuery(quantityType: type, quantitySamplePredicate: predicate,
+                                          options: .cumulativeSum) { _, statistics, error in
+                guard error == nil,
+                      let total = statistics?.sumQuantity()?.doubleValue(for: .count()),
+                      total.isFinite, total >= 0 else {
+                    cont.resume(returning: nil); return
+                }
+                cont.resume(returning: Int(total.rounded()))
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Read only HR samples associated with this HealthKit workout, excluding samples authored by NOOP.
+    /// The workout association prevents same-window samples from unrelated sessions being counted.
+    private static func fetchWorkoutHeartRate(for workout: HKWorkout,
+                                               store: HKHealthStore) async -> [HRSample] {
+        guard let type = HKQuantityType.quantityType(forIdentifier: .heartRate) else { return [] }
+        let predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+            HKQuery.predicateForObjects(from: workout),
+            Self.notNoopAuthored,
+        ])
+        return await withCheckedContinuation { (cont: CheckedContinuation<[HRSample], Never>) in
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let query = HKSampleQuery(sampleType: type, predicate: predicate,
+                                      limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, error in
+                guard error == nil, let samples = samples as? [HKQuantitySample] else {
+                    cont.resume(returning: []); return
+                }
+                let unit = HKUnit.count().unitDivided(by: .minute())
+                let result = samples.compactMap { sample -> HRSample? in
+                    let bpm = sample.quantity.doubleValue(for: unit)
+                    guard bpm.isFinite, bpm >= 25, bpm <= 240 else { return nil }
+                    return HRSample(ts: Int(sample.startDate.timeIntervalSince1970), bpm: Int(bpm.rounded()))
+                }
+                cont.resume(returning: result)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// #1205: fetch the GPS route and its original timing/accuracy for a single `HKWorkout`.
     /// Queries `HKWorkoutRoute` samples overlapping the workout's time range, then collects all
     /// `CLLocation` waypoints from each route via `HKWorkoutRouteQuery`. Returns `nil` when there
     /// is no route, the user has not granted route read access, or HealthKit reports an error —
     /// all of which are graceful skips (the workout imports without a map, same as today).
-    nonisolated static func fetchWorkoutRoute(for workout: HKWorkout, store: HKHealthStore) async -> [RouteMath.LatLng]? {
+    nonisolated static func fetchWorkoutRoute(for workout: HKWorkout, store: HKHealthStore) async -> [WorkoutRoutePoint]? {
         let routeType = HKSeriesType.workoutRoute()
         let predicate = HKQuery.predicateForSamples(withStart: workout.startDate, end: workout.endDate, options: .strictStartDate)
         // First: query for HKWorkoutRoute samples associated with this workout.
@@ -1774,12 +1918,15 @@ final class HealthKitBridge: ObservableObject {
         guard !routes.isEmpty else { return nil }
         // Second: collect CLLocation waypoints from each route. HKWorkoutRouteQuery calls its
         // handler repeatedly with batches of locations; `done: true` marks the end of one route.
-        var points: [RouteMath.LatLng] = []
+        var points: [WorkoutRoutePoint] = []
         for route in routes {
             await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
                 let query = HKWorkoutRouteQuery(route: route) { _, locations, done, _ in
                     for loc in locations ?? [] {
-                        points.append(RouteMath.LatLng(loc.coordinate.latitude, loc.coordinate.longitude))
+                        points.append(WorkoutRoutePoint(lat: loc.coordinate.latitude,
+                                                        lon: loc.coordinate.longitude,
+                                                        accuracyM: loc.horizontalAccuracy,
+                                                        tMs: Int64(loc.timestamp.timeIntervalSince1970 * 1000)))
                     }
                     if done { cont.resume(returning: ()) }
                 }

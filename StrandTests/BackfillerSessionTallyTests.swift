@@ -290,7 +290,7 @@ final class BackfillerSessionTallyTests: XCTestCase {
         // v25 fixtures carry motion only. Inject decoded HR to exercise the persistence boundary,
         // including out-of-order timestamps, independently of firmware-specific HR layouts.
         let backfiller = Backfiller(store: TallyStore(), deviceId: "test", ackTrim: { _, _ in },
-                                   extract: { _, _, _, _, _ in
+                                   extract: { _, _, _, _, _, _ in
             var streams = Streams()
             streams.hr = [HRSample(ts: 1_781_206_294, bpm: 70), HRSample(ts: 1_781_206_292, bpm: 72)]
             return streams

@@ -580,6 +580,9 @@ class WhoopRepository(
                 // Counts stay separate; the canonical observation owns this key's order and provenance.
                 dao.promoteWhoop5RrSource(row.deviceId, row.ts, row.rrMs, row.seq, row.ord!!, row.srcChannel)
             }
+            if (rrIds[index] == -1L && row.srcChannel == RrSourceChannel.WHOOP4_HISTORICAL.code) {
+                dao.promoteWhoop4HistoricalRr(row.deviceId, row.ts, row.rrMs, row.seq, row.ord!!)
+            }
         }
         val evIds = if (streams.events.isEmpty()) emptyList() else
             dao.insertEvents(streams.events.map { EventRow(deviceId, it.ts, it.kind, it.payloadJSON) })
@@ -1372,17 +1375,43 @@ class WhoopRepository(
             dao.legacyWhoop5RrWithheld(deviceId, from, to)
     }
 
-    /** Diagnostic export keeps all WHOOP transports and legacy values without scoring selection.
-     * Existing quarantine and Oura SpO2-IBI exclusions still apply. */
+    /** Diagnostic export keeps all WHOOP transports, both Oura beat channels and legacy values without
+     * scoring selection. Existing quarantine and Oura SpO2-IBI exclusions still apply. */
     suspend fun rawRrIntervalsForDevice(deviceId: String, from: Long, to: Long,
                                         limit: Int = DEFAULT_LIMIT): List<RrInterval> =
-        dao.rrIntervals(deviceId, from, to, limit)
+        dao.rawRrIntervals(deviceId, from, to, limit)
 
     suspend fun rrIntervalsForDevice(deviceId: String, from: Long, to: Long,
                                      limit: Int = DEFAULT_LIMIT,
                                      unlabelledAliasOfWhoop5: Boolean = false): List<RrInterval> = transactor.run {
-        if (isWhoop5RrSource(deviceId, unlabelledAliasOfWhoop5)) dao.whoop5RrIntervals(deviceId, from, to, limit)
-        else dao.rrIntervals(deviceId, from, to, limit)
+        // A WHOOP 4 reads its labelled type-47 history OR its unlabelled standard-BLE feed, never both
+        // spliced together: they overlap, and the pair over-counts coverage the same way two Oura
+        // channels did.
+        //
+        // A ring record served twice is stored twice: each connection anchors on its own SyncTime, so
+        // the second copy lands a second or two off the first and misses the row key instead of
+        // colliding with it (#2456). Collapsed HERE rather than at one scorer, so every SCORING reader
+        // agrees: the damage shows up as a coverage over-count, and coverage is computed from this read.
+        //
+        // `rawRrIntervalsForDevice` above deliberately does NOT collapse and still shows both copies.
+        // That is the point of a raw export, and it is the evidence the duplication was diagnosed from,
+        // so a diagnostic export and the app can legitimately disagree on beat counts.
+        OuraRedrainCollapse.withoutRedrainedRuns(
+            when {
+                isWhoop5RrSource(deviceId, unlabelledAliasOfWhoop5) ->
+                    dao.whoop5RrIntervals(deviceId, from, to, limit)
+                isWhoop4RrSource(deviceId) || dao.hasWhoop4HistoricalRrSource(deviceId) ->
+                    dao.whoop4RrIntervals(deviceId, from, to, limit)
+                else -> dao.rrIntervals(deviceId, from, to, limit)
+            }
+        )
+    }
+
+    /** Whether the device registry CONFIRMS this owner is a WHOOP 4, so its type-47 history is scorable. */
+    private suspend fun isWhoop4RrSource(deviceId: String): Boolean {
+        val owner = dao.pairedDevice(deviceId)
+        return com.noop.protocol.DeviceFamily.confirmedRegistryFamily(owner?.model, owner?.brand) ==
+            com.noop.protocol.DeviceFamily.WHOOP4
     }
 
     /** R-R beats over active strap + canonical history. Exact duplicate beats are removed with the
@@ -2791,7 +2820,7 @@ class WhoopRepository(
             for (list in lists) for (beat in list) {
                 byBeat.putIfAbsent(BeatKey(beat.ts, beat.rrMs, beat.seq), beat)
             }
-            if (byBeat.values.any { it.srcChannel in 5..7 }) {
+            if (byBeat.values.any { it.srcChannel in 5..7 || it.srcChannel == 8 }) {
                 // Kotlin's stable sort preserves owner precedence and captured within-second order.
                 return byBeat.values.sortedBy { it.ts }
             }
