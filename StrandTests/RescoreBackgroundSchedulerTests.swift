@@ -12,6 +12,33 @@ import WhoopStore
 @MainActor
 final class RescoreBackgroundSchedulerTests: XCTestCase {
 
+    func testStartupSchedulingWaitsForRegistrationAndReplaysOnce() {
+        var registration = RescoreTaskRegistration()
+        // Restored debt and a power-policy refresh can both request work before app init finishes.
+        XCTAssertFalse(registration.requestSubmission())
+        XCTAssertFalse(registration.requestSubmission())
+        XCTAssertTrue(registration.completeRegistration(succeeded: true))
+        XCTAssertFalse(registration.completeRegistration(succeeded: true))
+        XCTAssertTrue(registration.requestSubmission())
+    }
+
+    func testFailedRegistrationNeverAllowsSubmissionAndKeepsPendingRequest() {
+        var registration = RescoreTaskRegistration()
+        XCTAssertFalse(registration.requestSubmission())
+        XCTAssertFalse(registration.completeRegistration(succeeded: false))
+        XCTAssertFalse(registration.isRegistered)
+        XCTAssertFalse(registration.requestSubmission())
+        XCTAssertTrue(registration.completeRegistration(succeeded: true))
+        XCTAssertTrue(registration.requestSubmission())
+    }
+
+    func testRegistrationWithoutPendingWorkDoesNotSchedule() {
+        var registration = RescoreTaskRegistration()
+        XCTAssertFalse(registration.completeRegistration(succeeded: true))
+        XCTAssertTrue(registration.isRegistered)
+        XCTAssertTrue(registration.requestSubmission())
+    }
+
     func testCancelledAnalysisKeepsWatermarkAndDebtThenCanRunAgain() async throws {
         let defaults = UserDefaults.standard
         let watermark = defaults.object(forKey: "noop.analyzeWatermark")

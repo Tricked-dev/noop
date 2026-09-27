@@ -14,6 +14,30 @@ final class RescoreCancellation: @unchecked Sendable {
     func cancel() { lock.lock(); stopped = true; lock.unlock() }
 }
 
+/// Coalesces startup requests until a background handler has successfully registered.
+/// Kept independent of BackgroundTasks so launch ordering can be tested without an iPhone.
+struct RescoreTaskRegistration {
+    private(set) var isRegistered = false
+    private var submissionPending = false
+
+    mutating func requestSubmission() -> Bool {
+        guard isRegistered else {
+            submissionPending = true
+            return false
+        }
+        return true
+    }
+
+    /// Returns whether registration unlocked a request made during model initialization.
+    mutating func completeRegistration(succeeded: Bool) -> Bool {
+        guard succeeded, !isRegistered else { return false }
+        isRegistered = true
+        let shouldSubmit = submissionPending
+        submissionPending = false
+        return shouldSubmit
+    }
+}
+
 /// Runs a backgrounded re-score somewhere it can actually finish, and records honestly when one did not.
 ///
 /// See `RescoreBackgroundPolicy` for the problem (#1538) and the decision rules. This is the plumbing:
@@ -34,7 +58,7 @@ final class RescoreCancellation: @unchecked Sendable {
 ///   a no-op that reports `.run`, so the existing behaviour is exactly preserved.
 /// - **iOS** — needs the `processing` background mode AND the identifier listed in
 ///   `BGTaskSchedulerPermittedIdentifiers` AND `register()` called before launch finishes. If any of those
-///   is missing, `submit` fails gracefully and the foreground path still scores normally.
+///   is missing, scheduling is skipped and the foreground path still scores normally.
 @MainActor
 enum RescoreBackgroundScheduler {
 
@@ -326,15 +350,17 @@ enum RescoreBackgroundScheduler {
 
     #if os(iOS)
     static let taskIdentifier = (Bundle.main.bundleIdentifier ?? "com.noopapp.noop") + ".rescore"
+    private static var registration = RescoreTaskRegistration()
 
     /// Register the handler. MUST be called from `StrandiOSApp.init()` before launch finishes, and the
     /// identifier MUST be listed in `BGTaskSchedulerPermittedIdentifiers`, or iOS never delivers the task.
-    /// Safe to leave uncalled: `schedule()` fails gracefully and the foreground path still scores.
+    /// Calls to `schedule()` before registration are coalesced and replayed after it succeeds.
     /// `onExpire` reports iOS reclaiming the processing time before the pass finished. The pass keeps no
     /// record of it otherwise, so a strap log that simply stops mid-night cannot say why.
     static func register(perform operation: @escaping @MainActor () async -> Void,
                          onExpire: @escaping @MainActor () -> Void = {}) {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: nil) { task in
+        guard !registration.isRegistered else { return }
+        let registered = BGTaskScheduler.shared.register(forTaskWithIdentifier: taskIdentifier, using: nil) { task in
             let completion = TaskCompletionGuard(task: task)
             let worker = Task { @MainActor in
                 await operation()
@@ -355,11 +381,19 @@ enum RescoreBackgroundScheduler {
                 completion.finish(success: false)
             }
         }
+        let replayPendingRequest = registration.completeRegistration(succeeded: registered)
+        #if NOOP_SYNC_DIAGNOSTICS
+        OvernightDiagnostics.record("rescore-scheduler registration succeeded=\(registered) pending=\(replayPendingRequest)")
+        #endif
+        if replayPendingRequest { schedule() }
     }
 
     /// Keep exactly one pending request, so calling this from several places is idempotent and also
     /// repairs a request the system discarded.
     static func schedule() {
+        // AppModel initialization can restore scoring debt before StrandiOSApp registers the handler.
+        // Submitting then raises an Objective-C exception, which Swift's try? cannot catch.
+        guard registration.requestSubmission() else { return }
         BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: taskIdentifier)
         let request = BGProcessingTaskRequest(identifier: taskIdentifier)
         // Ordinary scoring can run on battery. When the phone requests Low Power Mode, allow
