@@ -468,8 +468,8 @@ final class Repository: ObservableObject {
     }
 
     /// Sleep sessions across every registered WHOOP source for a ts range, keeping ALL sessions per day (a nap + a main
-    /// night both survive) and dropping only EXACT-duplicate blocks (same start+end) recorded under both
-    /// union ids. The downstream `mergeSleep`/`userEditedDays` do the per-day collapse, exactly as before.
+    /// night both survive) and collapsing near-identical nights recorded under different union ids.
+    /// The downstream `mergeSleep`/`userEditedDays` do the per-day collapse, exactly as before.
     private func unionSleepSessions(store: WhoopStore, from: Int, to: Int, limit: Int = 4000) async -> [CachedSleepSession] {
         Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: rawPhysiologyReadIds(store: store), from: from, to: to, limit: limit))
     }
@@ -486,8 +486,8 @@ final class Repository: ObservableObject {
         return byDay.values.sorted { $0.day < $1.day }
     }
 
-    /// Computed ("-noop") sleep sessions across every registered WHOOP source, keeping ALL sessions per day and dropping
-    /// only EXACT-duplicate blocks recorded under both computed siblings.
+    /// Computed ("-noop") sleep sessions across every registered WHOOP source, keeping ALL sessions per day
+    /// and collapsing near-identical nights recorded under different computed siblings.
     private func unionComputedSleepSessions(store: WhoopStore, from: Int, to: Int, limit: Int = 4000) async -> [CachedSleepSession] {
         Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: rawComputedReadIds(store: store), from: from, to: to, limit: limit))
     }
@@ -502,14 +502,27 @@ final class Repository: ObservableObject {
         return blocks
     }
 
-    /// Drop blocks that share a (startTs, endTs) key, the same physical session recorded under both union
-    /// ids, keeping the first (active strap). Preserves genuinely distinct blocks (naps + main night).
-    nonisolated private static func dedupBlocks(_ blocks: [CachedSleepSession]) -> [CachedSleepSession] {
-        var seen = Set<String>()
+    /// Keep the active source's copy of a night when another source recorded nearly the same interval.
+    /// Require a majority of BOTH intervals to overlap so a short nap inside a long night survives.
+    /// Separate blocks from one source remain distinct, including split sleeps.
+    nonisolated static func dedupBlocks(_ blocks: [CachedSleepSession]) -> [CachedSleepSession] {
+        var seen = Set<[Int]>()
         var out: [CachedSleepSession] = []
         for b in blocks {
-            let key = "\(b.startTs)-\(b.endTs)"
-            if seen.insert(key).inserted { out.append(b) }
+            let key = [b.startTs, b.endTs]
+            guard seen.insert(key).inserted else { continue }
+            let overlapsOtherSource = out.contains { kept in
+                guard let source = b.deviceId, let keptSource = kept.deviceId,
+                      source != keptSource else { return false }
+                let start = max(b.effectiveStartTs, kept.effectiveStartTs)
+                let end = min(b.endTs, kept.endTs)
+                let bDuration = b.endTs - b.effectiveStartTs
+                let keptDuration = kept.endTs - kept.effectiveStartTs
+                let overlap = end - start
+                return bDuration > 0 && keptDuration > 0 &&
+                    overlap > bDuration / 2 && overlap > keptDuration / 2
+            }
+            if !overlapsOtherSource { out.append(b) }
         }
         return out
     }
@@ -1169,6 +1182,38 @@ final class Repository: ObservableObject {
         return byTs.values.sorted { $0.ts < $1.ts }
     }
 
+    /// The most recent banked battery reading, for the stale-battery warning (#2556).
+    ///
+    /// Reads the ACTIVE device id rather than the union: a battery reading belongs to the strap that sent
+    /// it, and warning about one strap's charge using another's reading is the #1706 mistake.
+    func latestBattery() async -> (ts: Int, soc: Double?, charging: Bool?)? {
+        guard let store = await ensureStore() else { return nil }
+        return try? await store.latestBattery(deviceId: deviceId)
+    }
+
+    /// The HR fingerprint over the UNION `hrSamples(from:to:limit:)` reads, as one opaque string.
+    ///
+    /// A fingerprint narrower than the read it guards is worse than none: it would let a caller reuse a
+    /// cached result after a backfill landed rows under an alias id, which is the id set that union exists
+    /// to cover. So this walks `rawPhysiologyReadIds`, the same list, rather than `deviceId` alone.
+    ///
+    /// Cost is one COUNT plus one MAX per id, straight over the `(deviceId, ts)` index with no rows
+    /// materialized, against the per-day row fetches a caller would otherwise repeat. Compared only to
+    /// itself in memory, so the format is free to change. Kotlin twin:
+    /// `WhoopRepository.hrUnionFingerprint`, which is a twin in ROLE only: each side compares its own
+    /// value against its own previous value, neither is persisted or sent anywhere, and the two encode
+    /// the same facts differently. There is no byte-identity contract here and no oracle asserting one,
+    /// so do not "align" the encodings on the assumption that there is.
+    func hrFingerprintUnion(from: Int, to: Int) async -> String {
+        guard let store = await ensureStore() else { return "" }
+        var parts: [String] = []
+        for id in rawPhysiologyReadIds(store: store) {
+            let fp = (try? await store.hrFingerprint(deviceId: id, from: from, to: to)) ?? (count: 0, maxTs: 0)
+            parts.append("\(id):\(fp.count):\(fp.maxTs)")
+        }
+        return parts.joined(separator: "|")
+    }
+
     func hrSamples(from: Int, to: Int, limit: Int = 8000) async -> [HRSample] {
         guard let store = await ensureStore() else { return [] }
         // UNION the active strap + canonical so the HR trend renders whether the landed day's raw sits under
@@ -1347,8 +1392,8 @@ final class Repository: ObservableObject {
         let rawIds = rawPhysiologyReadIds(store: store)
         let rawComputedIds = rawComputedReadIds(store: store)
         // UNION the active strap + canonical (imported) and their computed siblings, keeping ALL blocks (not
-        // one per day, this view expands split sleeps), but dropping any block that appears under BOTH union
-        // ids (same start+end key) so a day present in both namespaces isn't double-listed.
+        // one per day, this view expands split sleeps), but collapsing a night recorded under BOTH union
+        // ids even when the recorded bounds differ slightly.
         let imported = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: rawIds, from: lo, to: hi))
         let computed = Self.dedupBlocks(await unionRawSleepBlocks(store: store, ids: rawComputedIds, from: lo, to: hi))
         let cal = Calendar.current

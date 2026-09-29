@@ -996,6 +996,7 @@
     <string name="l10n_stress_screen_hours_h_7610ac7c">%1$sh</string>
     <string name="l10n_stress_screen_no_stress_history_yet_ec962e3c">Ancora nessuna cronologia dello stress</string>
     <string name="l10n_stress_screen_reading_your_heart_rate_variability_and_c0249246">Lettura della variabilità della frequenza cardiaca e della frequenza cardiaca a riposo…</string>
+    <string name="l10n_stress_screen_reading_today_s_heart_rate_7491835a">Lettura della frequenza cardiaca di oggi…</string>
     <string name="l10n_stress_screen_resting_hr_26677094">FC a riposo</string>
     <string name="l10n_stress_screen_start_a_breathe_session_9619e5c0">Avvia una sessione di Respira</string>
     <string name="l10n_stress_screen_stress_bad33342">Stress</string>
@@ -1928,6 +1929,8 @@
     <string name="battery_bedtime_body">%1$s di registrazione rimanenti, ma stanotte serve circa %2$s. Ricarica prima di andare a letto.</string>
     <string name="battery_runtime_title">Batteria scarica della fascia</string>
     <string name="battery_runtime_body">%1$s rimanenti sul tuo WHOOP — ricaricalo stanotte.</string>
+    <string name="battery_stale_title">WHOOP visto con poca batteria</string>
+    <string name="battery_stale_body">%1$d%% all\'ultimo contatto di NOOP, %2$s fa. Ricaricalo prima di stanotte.</string>
     <string name="battery_low_title">Batteria scarica</string>
     <string name="battery_low_body">Ricarica il tuo WHOOP prima di stanotte.</string>
     <string name="battery_full_title">Fascia completamente carica</string>
@@ -2037,6 +2040,13 @@
     <string name="recording_chip_detail_connected_no_data">Ancora nessuna frequenza cardiaca in diretta né cronologia sincronizzata in questa sessione.</string>
     <string name="score_state_title_calibrating">Calibrazione</string>
     <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Riprende al mattino</string>
+    <string name="stress_screen_subtitle">Carico autonomico durante le ore di veglia</string>
+    <string name="stress_timeline_caption_day">La linea è l\'indicatore 0–3 di ogni ora di veglia, calcolato rispetto alle tue ore tranquille di oggi. La barra sotto divide la giornata in tempo calmo, di stress moderato e di stress alto.</string>
+    <string name="stress_timeline_caption_personal">La linea mostra l\'indicatore da 0 a 3 per ogni ora di veglia, valutato rispetto al tuo riferimento diurno personale (l\'andamento abituale delle tue giornate). La barra sottostante divide la giornata in periodi di stress basso, moderato e alto.</string>
+    <plurals name="stress_hours_excluded_moving">
+        <item quantity="one">%1$d ora esclusa — eri in movimento.</item>
+        <item quantity="other">%1$d ore escluse — eri in movimento.</item>
+    </plurals>
     <string name="score_state_title_needs_strap">Richiede la fascia</string>
     <string name="score_state_title_last_night">La scorsa notte · %1$s</string>
     <string name="score_state_title_latest_sleep">Ultimo sonno · %1$s</string>
@@ -2803,4 +2813,10 @@
     <string name="fused_record_contribution_in_use">%1$s, %2$s, in uso</string>
     <string name="smart_alarm_5mg_armed_experimental">La sveglia è stata attivata sulla fascia con un comando sperimentale 5/MG. Sono stati segnalati risvegli dalla fascia su 5.0 e MG, ma non sono garantiti. Tieni una sveglia di riserva per gli impegni importanti.</string>
     <string name="raw_diag_protocol_probes_detail">Invia richieste di protocollo sperimentali e abilita la sveglia della fascia 5/MG. Non serve per la normale sincronizzazione, il sonno, il recupero o i passi.</string>
+    <string name="sleep_result_updated_title">Risultato del sonno aggiornato</string>
+    <string name="sleep_result_updated_message">Gli orari del sonno o il tempo totale dormito di questa notte sono cambiati di almeno cinque minuti.</string>
+    <string name="raw_diag_ecg_probe">Sonda di attivazione ECG WHOOP MG</string>
+    <string name="raw_diag_ecg_probe_start">Avvia acquisizione ECG</string>
+    <string name="raw_diag_ecg_probe_stop">Interrompi acquisizione ECG</string>
+    <string name="raw_diag_ecg_probe_running">Una acquisizione potrebbe essere ancora attiva su questo strap. Il verdetto va nello strap log.</string>
 </resources>

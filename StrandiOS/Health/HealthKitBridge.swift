@@ -522,7 +522,6 @@ final class HealthKitBridge: ObservableObject {
 
         var byDay: [String: DayAgg] = [:]
         func agg(_ day: String) -> DayAgg { byDay[day] ?? DayAgg() }
-
         do {
             // Quantity aggregates per day.
             try await collect(.restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()), start: start, end: end, op: .discreteAverage) { day, v in

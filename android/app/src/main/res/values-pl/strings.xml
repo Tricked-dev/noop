@@ -172,7 +172,7 @@
     <string name="power_saving_blurb">Zmniejsz obciążenie paska, gdy jego bateria jest na wyczerpaniu. Pasek samodzielnie przechowuje dane bankowe, więc nic nie zostaje utracone — NOOP po prostu rzadziej się z nim komunikuje, aby pomóc mu przetrwać do czasu, aż będzie można go naładować.</string>
     <string name="power_saving_mode">Tryb oszczędzania energii</string>
     <string name="power_saving_mode_desc">Spowalnia synchronizację paska w tle (co 45 minut zamiast 15), gdy bateria paska jest słaba. Brak utraty danych — pasek przechowuje wszystko, więc synchronizuj tylko partie w większe, rzadsze pociągnięcia.</string>
-    <string name="power_saving_kick_in">Kopnij o (akumulator paska)</string>
+    <string name="power_saving_kick_in">Włącza się przy (baterii paska)</string>
     <string name="power_saving_pct">%1$d%%</string>
     <string name="power_saving_hrv_pause">Wstrzymaj przechwytywanie HRV</string>
     <string name="power_saving_hrv_pause_desc">Gdy bateria Twojego paska jest bliska wyczerpania, zatrzymaj zawsze włączony strumień HRV w tle — powoduje to największe ciągłe zużycie paska. Ekran na żywo nadal pokazuje tętno i ponownie się uzbraja po naładowaniu paska.</string>
@@ -884,6 +884,7 @@
     <string name="l10n_stress_screen_hours_h_7610ac7c">%1$sh</string>
     <string name="l10n_stress_screen_no_stress_history_yet_ec962e3c">Nie ma jeszcze historii stresu</string>
     <string name="l10n_stress_screen_reading_your_heart_rate_variability_and_c0249246">Odczytywanie zmienności tętna i tętna spoczynkowego…</string>
+    <string name="l10n_stress_screen_reading_today_s_heart_rate_7491835a">Odczytywanie dzisiejszego tętna…</string>
     <string name="l10n_stress_screen_resting_hr_26677094">Odpoczynkowe tętno</string>
     <string name="l10n_stress_screen_start_a_breathe_session_9619e5c0">Rozpocznij sesję oddechową</string>
     <string name="l10n_stress_screen_stress_bad33342">Stres</string>
@@ -1543,7 +1544,7 @@
     <string name="l10n_settings_screen_send_enable_sequence_to_strap_04ff8a22">Wyślij sekwencję włączającą do paska</string>
     <string name="l10n_settings_screen_set_up_automatic_backups_00b4780c">Skonfiguruj automatyczne kopie zapasowe</string>
     <string name="l10n_settings_screen_settings_c7f73bb5">Ustawienia</string>
-    <string name="l10n_settings_screen_sex_e301dd60">Seks</string>
+    <string name="l10n_settings_screen_sex_e301dd60">Płeć</string>
     <string name="l10n_settings_screen_share_5_mg_capture_for_the_e41ac6bd">Udostępnij przechwytywanie 5/MG (w celu dekodowania)</string>
     <string name="l10n_settings_screen_share_on_device_signals_with_the_b3fd747e">Udostępniaj sygnały z urządzenia trenerowi</string>
     <string name="l10n_settings_screen_share_strap_log_for_bug_reports_b9802500">Udostępnij dziennik paska (w przypadku raportów o błędach)</string>
@@ -1829,6 +1830,8 @@
     <string name="battery_bedtime_body">Pozostało %1$s nagrania, ale dziś wieczorem potrzeba około %2$s. Energia przed snem.</string>
     <string name="battery_runtime_title">Niski poziom naładowania baterii paska</string>
     <string name="battery_runtime_body">%1$s pozostało na Twoim WHOOP — doładuj dzisiaj wieczorem.</string>
+    <string name="battery_stale_title">WHOOP ostatnio z niskim poziomem baterii</string>
+    <string name="battery_stale_body">%1$d%% przy ostatnim kontakcie NOOP, %2$s temu. Naładuj go przed wieczorem.</string>
     <string name="battery_low_title">Niski poziom baterii</string>
     <string name="battery_low_body">Naładuj swój WHOOP przed wieczorem.</string>
     <string name="battery_full_title">Pasek w pełni naładowany</string>
@@ -1906,7 +1909,7 @@
     <string name="onboarding_profile_subtitle">Zatem Twoje strefy, kalorie i punktacja na urządzeniu zaczynają się od właściwych liczb.</string>
     <string name="onboarding_years">lata</string>
     <string name="onboarding_age_accessibility">Wiek, %1$d lat</string>
-    <string name="onboarding_sex">Seks</string>
+    <string name="onboarding_sex">Płeć</string>
     <string name="onboarding_male">Mężczyzna</string>
     <string name="onboarding_female">Kobieta</string>
     <string name="onboarding_other">Inny</string>
@@ -1939,6 +1942,15 @@
     <string name="recording_chip_detail_connected_no_data">W tej sesji nie ma jeszcze tętna na żywo ani zsynchronizowanej historii.</string>
     <string name="score_state_title_calibrating">Kalibracja</string>
     <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Wznowi się rano</string>
+    <string name="stress_screen_subtitle">Obciążenie autonomiczne w ciągu dnia</string>
+    <string name="stress_timeline_caption_day">Linia pokazuje wskaźnik 0–3 dla każdej godziny czuwania, oceniany względem Twoich dzisiejszych spokojnych godzin. Pasek poniżej dzieli dzień na okresy niskiego, umiarkowanego i wysokiego stresu.</string>
+    <string name="stress_timeline_caption_personal">Linia pokazuje wskaźnik 0–3 dla każdej godziny czuwania, oceniany względem Twojej osobistej dziennej linii bazowej (typowego przebiegu Twoich dni). Pasek poniżej dzieli dzień na okresy niskiego, umiarkowanego i wysokiego stresu.</string>
+    <plurals name="stress_hours_excluded_moving">
+        <item quantity="one">Wykluczono %1$d godzinę — wykryto ruch.</item>
+        <item quantity="few">Wykluczono %1$d godziny — wykryto ruch.</item>
+        <item quantity="many">Wykluczono %1$d godzin — wykryto ruch.</item>
+        <item quantity="other">Wykluczono %1$d godziny — wykryto ruch.</item>
+    </plurals>
     <string name="score_state_title_needs_strap">Potrzebuje paska</string>
     <string name="score_state_title_last_night">Ostatnia noc · %1$s</string>
     <string name="score_state_title_latest_sleep">Ostatni sen · %1$s</string>
@@ -2849,4 +2861,10 @@
     <string name="fused_record_contribution_in_use">%1$s, %2$s, w użyciu</string>
     <string name="smart_alarm_5mg_armed_experimental">Alarm uzbrojono na opasce eksperymentalnym poleceniem 5/MG. Zgłaszano wybudzanie przez opaski 5.0 i MG, ale nie jest ono gwarantowane. Zachowaj alarm zapasowy na ważne okazje.</string>
     <string name="raw_diag_protocol_probes_detail">Wysyła eksperymentalne zapytania protokołu i włącza alarm opaski 5/MG. Nie jest potrzebne do zwykłej synchronizacji, snu, regeneracji ani kroków.</string>
+    <string name="sleep_result_updated_title">Zaktualizowano wynik snu</string>
+    <string name="sleep_result_updated_message">Godziny snu lub łączny czas snu tej nocy zmieniły się o co najmniej pięć minut.</string>
+    <string name="raw_diag_ecg_probe">Sonda włączania EKG WHOOP MG</string>
+    <string name="raw_diag_ecg_probe_start">Rozpocznij zapis EKG</string>
+    <string name="raw_diag_ecg_probe_stop">Zatrzymaj zapis EKG</string>
+    <string name="raw_diag_ecg_probe_running">Na tym pasku może nadal trwać zapis. Werdykt trafia do strap log.</string>
 </resources>

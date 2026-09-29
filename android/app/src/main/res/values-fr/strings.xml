@@ -487,7 +487,7 @@
     <string name="l10n_live_session_screen_above_6370c271">Au-dessus</string>
     <string name="l10n_live_session_screen_below_5ba07a31">Ci-dessous</string>
     <string name="l10n_live_session_screen_done_e9b450d1">Terminé</string>
-    <string name="l10n_live_session_screen_end_session_8c0f4c33">Fin de la session</string>
+    <string name="l10n_live_session_screen_end_session_8c0f4c33">Terminer la session</string>
     <string name="l10n_live_session_screen_guarded_for_elapsedclock_snap_elapsedsec_tolong_a61f2d32">Garde pour %1$s</string>
     <string name="l10n_live_session_screen_guardianbreath_f76a0607">tuteur</string>
     <string name="l10n_live_session_screen_guardianbreathscale_38b62ee7">tuteurBreathScale</string>
@@ -751,6 +751,7 @@
     <string name="l10n_stress_screen_hours_h_7610ac7c">%1$sh</string>
     <string name="l10n_stress_screen_no_stress_history_yet_ec962e3c">Pas encore de stress</string>
     <string name="l10n_stress_screen_reading_your_heart_rate_variability_and_c0249246">Lecture de votre variabilité de la fréquence cardiaque et FC au repos…</string>
+    <string name="l10n_stress_screen_reading_today_s_heart_rate_7491835a">Lecture de votre fréquence cardiaque d\'aujourd\'hui…</string>
     <string name="l10n_stress_screen_resting_hr_26677094">FC au repos</string>
     <string name="l10n_stress_screen_start_a_breathe_session_9619e5c0">Démarrer une séance de respiration</string>
     <string name="l10n_stress_screen_stress_bad33342">Stress</string>
@@ -1848,6 +1849,8 @@
          Apple catalog's, moved across unchanged. -->
     <string name="battery_runtime_title">Batterie faible du bracelet</string>
     <string name="battery_runtime_body">Il reste %1$s sur votre WHOOP — rechargez-le ce soir.</string>
+    <string name="battery_stale_title">WHOOP vu avec peu de batterie</string>
+    <string name="battery_stale_body">%1$d%% lors du dernier contact de NOOP, il y a %2$s. Rechargez-le avant ce soir.</string>
     <string name="battery_low_title">Batterie faible</string>
     <string name="battery_low_body">Rechargez votre WHOOP avant ce soir.</string>
     <string name="battery_full_title">Bracelet complètement chargé</string>
@@ -1968,6 +1971,13 @@
     <string name="recording_chip_detail_connected_no_data">Aucune fréquence cardiaque en direct ni historique synchronisé durant cette session.</string>
     <string name="score_state_title_calibrating">Calibration en cours</string>
     <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Reprend le matin</string>
+    <string name="stress_screen_subtitle">Charge autonome au fil de votre journée éveillée</string>
+    <string name="stress_timeline_caption_day">La ligne représente l\'indice 0–3 de chaque heure éveillée, évalué par rapport à vos propres heures calmes d\'aujourd\'hui. La barre ci-dessous répartit votre journée en périodes de stress faible, modéré et élevé.</string>
+    <string name="stress_timeline_caption_personal">La ligne représente l\'indice 0–3 de chaque heure éveillée, évalué par rapport à votre référence diurne personnelle (le déroulement habituel de vos journées). La barre ci-dessous répartit votre journée en périodes de stress faible, modéré et élevé.</string>
+    <plurals name="stress_hours_excluded_moving">
+        <item quantity="one">%1$d heure exclue — vous étiez en mouvement.</item>
+        <item quantity="other">%1$d heures exclues — vous étiez en mouvement.</item>
+    </plurals>
     <string name="score_state_title_needs_strap">Nécessite le bracelet</string>
     <string name="score_state_title_last_night">La nuit dernière · %1$s</string>
     <string name="score_state_title_latest_sleep">Dernier sommeil · %1$s</string>
@@ -2834,4 +2844,10 @@
     <string name="fused_record_contribution_in_use">%1$s, %2$s, en cours d\'utilisation</string>
     <string name="smart_alarm_5mg_armed_experimental">L’alarme est activée sur le bracelet avec une commande expérimentale 5/MG. Des réveils par le bracelet ont été signalés sur 5.0 et MG, sans être garantis. Gardez une alarme de secours pour tout réveil important.</string>
     <string name="raw_diag_protocol_probes_detail">Envoie des requêtes de protocole expérimentales et active l’alarme du bracelet 5/MG. Inutile pour la synchronisation, le sommeil, la récupération ou les pas ordinaires.</string>
+    <string name="sleep_result_updated_title">Résultat du sommeil mis à jour</string>
+    <string name="sleep_result_updated_message">Les horaires de sommeil ou la durée totale de sommeil de cette nuit ont changé d’au moins cinq minutes.</string>
+    <string name="raw_diag_ecg_probe">Sonde d\'activation ECG WHOOP MG</string>
+    <string name="raw_diag_ecg_probe_start">Démarrer la capture ECG</string>
+    <string name="raw_diag_ecg_probe_stop">Arrêter la capture ECG</string>
+    <string name="raw_diag_ecg_probe_running">Une capture est peut-être encore active sur ce bracelet. Le verdict est écrit dans le strap log.</string>
 </resources>

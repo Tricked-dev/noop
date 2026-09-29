@@ -876,6 +876,7 @@
     <string name="l10n_stress_screen_hours_h_7610ac7c">%1$s小时</string>
     <string name="l10n_stress_screen_no_stress_history_yet_ec962e3c">暂无压力历史数据</string>
     <string name="l10n_stress_screen_reading_your_heart_rate_variability_and_c0249246">正在读取您的心率变异性 (HRV) 和静息心率…</string>
+    <string name="l10n_stress_screen_reading_today_s_heart_rate_7491835a">正在读取今天的心率…</string>
     <string name="l10n_stress_screen_resting_hr_26677094">静息心率</string>
     <string name="l10n_stress_screen_start_a_breathe_session_9619e5c0">开启一段正念呼吸</string>
     <string name="l10n_stress_screen_stress_bad33342">压力</string>
@@ -1752,6 +1753,8 @@
          Apple catalog's, moved across unchanged. -->
     <string name="battery_runtime_title">手环电量低</string>
     <string name="battery_runtime_body">你的 WHOOP 还剩 %1$s，今晚请充电。</string>
+    <string name="battery_stale_title">WHOOP 上次电量偏低</string>
+    <string name="battery_stale_body">NOOP 上次连接时为 %1$d%%，在 %2$s前。请在今晚之前充电。</string>
     <string name="battery_low_title">电量低</string>
     <string name="battery_low_body">今晚之前给你的 WHOOP 充电。</string>
     <string name="battery_full_title">手环已充满电</string>
@@ -1872,6 +1875,12 @@
     <string name="recording_chip_detail_connected_no_data">本次连接尚无实时心率或已同步的历史记录。</string>
     <string name="score_state_title_calibrating">校准中</string>
     <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">早晨恢复</string>
+    <string name="stress_screen_subtitle">清醒时段的自主神经负荷</string>
+    <string name="stress_timeline_caption_day">折线显示每个清醒小时的 0–3 指标，并以您今天自己的平静时段为基准评分。下方的条形将您的一天划分为低、中、高压力时段。</string>
+    <string name="stress_timeline_caption_personal">折线显示每个清醒小时的 0–3 指标，并以您的个人日间基线（您平时一天的状态）为基准评分。下方的条形将您的一天划分为低、中、高压力时段。</string>
+    <plurals name="stress_hours_excluded_moving">
+        <item quantity="other">因您当时在活动，已排除 %1$d 小时。</item>
+    </plurals>
     <string name="score_state_title_needs_strap">需要手环</string>
     <string name="score_state_title_last_night">昨晚 · %1$s</string>
     <string name="score_state_title_latest_sleep">最近睡眠 · %1$s</string>
@@ -2806,4 +2815,10 @@
     <string name="fused_record_contribution_in_use">%1$s，%2$s，使用中</string>
     <string name="smart_alarm_5mg_armed_experimental">已通过实验性 5/MG 命令在手环上设置闹钟。有用户报告 5.0 和 MG 手环能够唤醒，但不保证每次生效。重要事项请保留备用闹钟。</string>
     <string name="raw_diag_protocol_probes_detail">发送实验性协议查询并启用 5/MG 手环闹钟。正常同步、睡眠、恢复和步数功能不需要开启。</string>
+    <string name="sleep_result_updated_title">睡眠结果已更新</string>
+    <string name="sleep_result_updated_message">这晚的入睡时间、醒来时间或总睡眠时长变化了至少五分钟。</string>
+    <string name="raw_diag_ecg_probe">WHOOP MG 心电图启动探测</string>
+    <string name="raw_diag_ecg_probe_start">开始心电图采集</string>
+    <string name="raw_diag_ecg_probe_stop">停止心电图采集</string>
+    <string name="raw_diag_ecg_probe_running">此腕带上可能仍在采集。结论会写入 strap log。</string>
 </resources>

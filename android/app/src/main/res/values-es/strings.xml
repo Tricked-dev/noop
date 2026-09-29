@@ -469,7 +469,7 @@
     <string name="l10n_live_session_screen_above_6370c271">Arriba</string>
     <string name="l10n_live_session_screen_below_5ba07a31">A continuación</string>
     <string name="l10n_live_session_screen_done_e9b450d1">Listo</string>
-    <string name="l10n_live_session_screen_end_session_8c0f4c33">Período de sesiones final</string>
+    <string name="l10n_live_session_screen_end_session_8c0f4c33">Finalizar sesión</string>
     <string name="l10n_live_session_screen_guarded_for_elapsedclock_snap_elapsedsec_tolong_a61f2d32">Guarded for %1$s</string>
     <string name="l10n_live_session_screen_guardianbreath_f76a0607">tutor</string>
     <string name="l10n_live_session_screen_guardianbreathscale_38b62ee7">guardianBreathScale</string>
@@ -733,6 +733,7 @@
     <string name="l10n_stress_screen_hours_h_7610ac7c">%1$sh</string>
     <string name="l10n_stress_screen_no_stress_history_yet_ec962e3c">No hay historia del estrés todavía</string>
     <string name="l10n_stress_screen_reading_your_heart_rate_variability_and_c0249246">Leyendo tu variabilidad de la frecuencia cardíaca y tu frecuencia cardíaca en reposo…</string>
+    <string name="l10n_stress_screen_reading_today_s_heart_rate_7491835a">Leyendo tu frecuencia cardíaca de hoy…</string>
     <string name="l10n_stress_screen_resting_hr_26677094">FC en reposo</string>
     <string name="l10n_stress_screen_start_a_breathe_session_9619e5c0">Iniciar una sesión de respiración</string>
     <string name="l10n_stress_screen_stress_bad33342">Estrés</string>
@@ -1735,7 +1736,7 @@
     <string name="power_saving_blurb">Facilite la carga en la correa cuando su batería esté baja. La correa mantiene datos bancarios por sí solas, por lo que nada se pierde — NOOP sólo habla con ella con menos frecuencia para ayudarle a durar hasta que pueda cargarlo.</string>
     <string name="power_saving_mode">Modo de ahorro de energía</string>
     <string name="power_saving_mode_desc">Lenta la correa de fondo-sinc (cada 45 min en lugar de 15) mientras que la batería de la correa\ es baja. No hay pérdida de datos — la correa lo bloquea todo, así que sincronizar sólo lotes en tiradas más grandes y menos frecuentes.</string>
-    <string name="power_saving_kick_in">Pase en (la batería del freno)</string>
+    <string name="power_saving_kick_in">Se activa a (batería de la pulsera)</string>
     <string name="power_saving_pct">%1$d%%</string>
     <string name="power_saving_hrv_pause">Captura de HRV</string>
     <string name="power_saving_hrv_pause_desc">Mientras que la batería de tu correa\ es baja, detén el flujo de HRV de fondo siempre en el fondo, el mayor drenaje continuo en la correa. Una pantalla en vivo todavía muestra la frecuencia cardíaca, y re-armas automáticamente una vez que se carga la correa.</string>
@@ -1830,6 +1831,8 @@
          Apple catalog's, moved across unchanged. -->
     <string name="battery_runtime_title">Batería baja de la pulsera</string>
     <string name="battery_runtime_body">Autonomía restante en tu WHOOP: %1$s. Recárgalo esta noche.</string>
+    <string name="battery_stale_title">WHOOP visto con poca batería</string>
+    <string name="battery_stale_body">%1$d%% en el último contacto de NOOP, hace %2$s. Cárgalo antes de esta noche.</string>
     <string name="battery_low_title">Batería baja</string>
     <string name="battery_low_body">Recarga tu WHOOP antes de esta noche.</string>
     <string name="battery_full_title">Pulsera completamente cargada</string>
@@ -1950,6 +1953,13 @@
     <string name="recording_chip_detail_connected_no_data">Aún no hay frecuencia cardíaca en vivo ni historial sincronizado en esta sesión.</string>
     <string name="score_state_title_calibrating">Calibrando</string>
     <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Se reanuda por la mañana</string>
+    <string name="stress_screen_subtitle">Carga autonómica durante las horas de vigilia</string>
+    <string name="stress_timeline_caption_day">La línea muestra el indicador de 0 a 3 de cada hora de vigilia, comparado con tus propias horas de calma de hoy. La barra inferior divide el día en periodos de estrés bajo, moderado y alto.</string>
+    <string name="stress_timeline_caption_personal">La línea muestra el indicador de 0 a 3 de cada hora de vigilia, comparado con tu referencia diurna personal (cómo suelen transcurrir tus días). La barra inferior divide el día en periodos de estrés bajo, moderado y alto.</string>
+    <plurals name="stress_hours_excluded_moving">
+        <item quantity="one">Se excluyó %1$d hora porque estabas en movimiento.</item>
+        <item quantity="other">Se excluyeron %1$d horas porque estabas en movimiento.</item>
+    </plurals>
     <string name="score_state_title_needs_strap">Necesita la banda</string>
     <string name="score_state_title_last_night">Anoche · %1$s</string>
     <string name="score_state_title_latest_sleep">Último sueño · %1$s</string>
@@ -2835,4 +2845,10 @@
     <string name="fused_record_contribution_in_use">%1$s, %2$s, en uso</string>
     <string name="smart_alarm_5mg_armed_experimental">La alarma se activó en la pulsera con un comando experimental 5/MG. Se han comunicado despertares desde pulseras 5.0 y MG, pero no están garantizados. Mantén una alarma de respaldo para lo que no puedas perderte.</string>
     <string name="raw_diag_protocol_probes_detail">Envía consultas de protocolo experimentales y habilita la alarma de la pulsera 5/MG. No se necesita para la sincronización, el sueño, la recuperación ni los pasos normales.</string>
+    <string name="sleep_result_updated_title">Resultado del sueño actualizado</string>
+    <string name="sleep_result_updated_message">Las horas de sueño o el tiempo total dormido de esta noche cambiaron al menos cinco minutos.</string>
+    <string name="raw_diag_ecg_probe">Sonda de activación de ECG WHOOP MG</string>
+    <string name="raw_diag_ecg_probe_start">Iniciar captura de ECG</string>
+    <string name="raw_diag_ecg_probe_stop">Detener captura de ECG</string>
+    <string name="raw_diag_ecg_probe_running">Puede que siga activa una captura en esta correa. El veredicto se registra en el strap log.</string>
 </resources>

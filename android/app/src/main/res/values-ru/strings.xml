@@ -928,6 +928,7 @@
     <string name="l10n_stress_screen_hours_h_7610ac7c">%1$sч</string>
     <string name="l10n_stress_screen_no_stress_history_yet_ec962e3c">Истории стресса пока нет</string>
     <string name="l10n_stress_screen_reading_your_heart_rate_variability_and_c0249246">Загружаю ВСР и пульс в покое…</string>
+    <string name="l10n_stress_screen_reading_today_s_heart_rate_7491835a">Загружаю сегодняшний пульс…</string>
     <string name="l10n_stress_screen_resting_hr_26677094">Пульс в покое</string>
     <string name="l10n_stress_screen_start_a_breathe_session_9619e5c0">Начать сеанс дыхания</string>
     <string name="l10n_stress_screen_stress_bad33342">Стресс</string>
@@ -1838,6 +1839,8 @@
     <string name="battery_bedtime_body">Осталось записи на %1$s, а на ночь нужно около %2$s. Зарядите перед сном.</string>
     <string name="battery_runtime_title">Низкий заряд браслета</string>
     <string name="battery_runtime_body">На вашем WHOOP осталось %1$s — зарядите сегодня вечером.</string>
+    <string name="battery_stale_title">WHOOP был с низким зарядом</string>
+    <string name="battery_stale_body">%1$d%% при последнем контакте NOOP, %2$s назад. Зарядите его до ночи.</string>
     <string name="battery_low_title">Низкий заряд</string>
     <string name="battery_low_body">Зарядите WHOOP до наступления ночи.</string>
     <string name="battery_full_title">Браслет полностью заряжен</string>
@@ -1942,6 +1945,15 @@
     <string name="recording_chip_detail_connected_no_data">Пока нет ни пульса в реальном времени, ни синхронизированной истории в этой сессии.</string>
     <string name="score_state_title_calibrating">Калибровка</string>
     <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Возобновится утром</string>
+    <string name="stress_screen_subtitle">Вегетативная нагрузка в течение дня бодрствования</string>
+    <string name="stress_timeline_caption_day">Линия показывает показатель 0–3 за каждый час бодрствования относительно ваших собственных спокойных часов сегодня. Полоса ниже делит день на периоды низкого, умеренного и высокого стресса.</string>
+    <string name="stress_timeline_caption_personal">Линия показывает показатель 0–3 за каждый час бодрствования относительно вашей личной дневной нормы (обычного хода ваших дней). Полоса ниже делит день на периоды низкого, умеренного и высокого стресса.</string>
+    <plurals name="stress_hours_excluded_moving">
+        <item quantity="one">Исключён %1$d час — вы двигались.</item>
+        <item quantity="few">Исключено %1$d часа — вы двигались.</item>
+        <item quantity="many">Исключено %1$d часов — вы двигались.</item>
+        <item quantity="other">Исключено %1$d часа — вы двигались.</item>
+    </plurals>
     <string name="score_state_title_needs_strap">Нужен ремешок</string>
     <string name="score_state_title_last_night">Прошлая ночь · %1$s</string>
     <string name="score_state_title_latest_sleep">Последний сон · %1$s</string>
@@ -2728,4 +2740,10 @@
     <string name="fused_record_contribution_in_use">%1$s, %2$s, используется</string>
     <string name="smart_alarm_5mg_armed_experimental">Будильник установлен на браслете экспериментальной командой 5/MG. Сообщалось о срабатывании на 5.0 и MG, но оно не гарантировано. Оставьте резервный будильник для важных событий.</string>
     <string name="raw_diag_protocol_probes_detail">Отправляет экспериментальные запросы протокола и включает будильник браслета 5/MG. Не требуется для обычной синхронизации, сна, восстановления или подсчёта шагов.</string>
+    <string name="sleep_result_updated_title">Результат сна обновлён</string>
+    <string name="sleep_result_updated_message">Время засыпания, пробуждения или общая продолжительность сна этой ночи изменились как минимум на пять минут.</string>
+    <string name="raw_diag_ecg_probe">Проба включения ЭКГ WHOOP MG</string>
+    <string name="raw_diag_ecg_probe_start">Начать запись ЭКГ</string>
+    <string name="raw_diag_ecg_probe_stop">Остановить запись ЭКГ</string>
+    <string name="raw_diag_ecg_probe_running">На этом ремешке запись может всё ещё идти. Результат попадёт в strap log.</string>
 </resources>
