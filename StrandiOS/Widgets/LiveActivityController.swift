@@ -9,6 +9,8 @@ import UIKit
 @MainActor
 final class LiveActivityController {
     private var activity: Activity<NOOPActivityAttributes>?
+    private var activityStateTask: Task<Void, Never>?
+    private var ownsRealtime = false
     /// What the banner reads — the live heart rate, the link, the day's recovery and effort — set once by `follow`.
     private weak var model: AppModel?
     /// Whether the Lift Log banner is on screen, which the heart rate banner makes room for.
@@ -40,7 +42,7 @@ final class LiveActivityController {
     /// suspends NOOP, so no timer of NOOP's can clear the number: iOS's own stale date is what does it, in at most
     /// this long (a tester's log, 23 Sep 2026). A steady number is re-pushed once half of this has passed
     /// (`LiveHRBannerPushPolicy`), so a banner fed by a worn strap never goes stale.
-    static let staleAfter: TimeInterval = 30
+    static let staleAfter: TimeInterval = 45
 
     /// Follow the strap from process start, not from a screen. iOS starts NOOP in the background — the strap
     /// reconnecting, a sync, the Sync Strap shortcut — and a process started that way need not build any screen (the
@@ -54,6 +56,7 @@ final class LiveActivityController {
         // nothing, so the banner kept the last number until iOS's stale date drew the dash.
         LiveHRBannerInputs.settled([model.live.$heartRate.map { _ in () }.eraseToAnyPublisher(),
                                     model.live.$connected.map { _ in () }.eraseToAnyPublisher(),
+                                    model.live.$liveActivitySampleSeq.map { _ in () }.eraseToAnyPublisher(),
                                     model.$bpm.map { _ in () }.eraseToAnyPublisher()])
             .sink { [weak self] in self?.refreshBanner() }
             .store(in: &cancellables)
@@ -97,12 +100,18 @@ final class LiveActivityController {
     /// `staleAfter`).
     private func update(bpm: Int?, recovery: Int?, connected: Bool, standsAside: Bool, appActive: Bool,
                         effort: Int?) {
-        guard authInfo.areActivitiesEnabled else { return }
+        guard authInfo.areActivitiesEnabled else {
+            setRealtimeDemand(false)
+            return
+        }
 
         // A banner iOS ended (after about eight hours) or the user swiped away is gone: forget it, so the next time
         // NOOP is on screen it starts one again rather than pushing to nothing. (One NOOP is ending is not gone yet.)
         if !isEnding, let activity, !Self.isShowing(activity) {
             self.activity = nil
+            activityStateTask?.cancel()
+            activityStateTask = nil
+            setRealtimeDemand(false)
             shownState = nil
             startedAt = nil
             log("gone from the Lock Screen (ended by iOS or dismissed); started again when NOOP is next on screen")
@@ -115,6 +124,8 @@ final class LiveActivityController {
         // `Activity.activities` isn't reliably hydrated at the instant of process launch.
         if activity == nil, let adopted = Activity<NOOPActivityAttributes>.activities.first(where: Self.isShowing) {
             activity = adopted
+            observeState(of: adopted)
+            setRealtimeDemand(true)
             startedAt = (UserDefaults.standard.dictionary(forKey: Self.startedKey)?[adopted.id] as? Double)
                 .map(Date.init(timeIntervalSince1970:))
             log("picked up the one already on the Lock Screen")
@@ -128,10 +139,13 @@ final class LiveActivityController {
             switchOn: switchOn, standsAside: standsAside, linkUp: connected,
             showing: activity != nil, age: age, appActive: appActive)
         switch step {
-        case .nothing: return
+        case .nothing:
+            setRealtimeDemand(false)
+            return
         case .end:
             guard !isEnding else { return }
             isEnding = true
+            setRealtimeDemand(false)
             log(switchOn ? "ended: the Lift Log banner takes its place" : "ended: its switch is off")
             Task { await end() }
             return
@@ -184,6 +198,8 @@ final class LiveActivityController {
                 pushType: nil
             )
             activity = started
+            observeState(of: started)
+            setRealtimeDemand(true)
             startedAt = now
             UserDefaults.standard.set([started.id: now.timeIntervalSince1970], forKey: Self.startedKey)
             lastPush = now
@@ -215,12 +231,36 @@ final class LiveActivityController {
         model?.live.append(log: AppModel.stamped("Live HR banner: " + line))
     }
 
+    private func setRealtimeDemand(_ active: Bool) {
+        guard active != ownsRealtime else { return }
+        ownsRealtime = active
+        model?.setRealtimeSession(.liveActivity, active: active)
+    }
+
+    /// A dismissed or expired banner must release its stream even if no further HR frame arrives.
+    private func observeState(of activity: Activity<NOOPActivityAttributes>) {
+        activityStateTask?.cancel()
+        activityStateTask = Task { [weak self] in
+            for await state in activity.activityStateUpdates {
+                guard !Task.isCancelled else { return }
+                guard let self, self.activity?.id == activity.id else { return }
+                if state == .ended || state == .dismissed {
+                    self.refreshBanner()
+                    return
+                }
+            }
+        }
+    }
+
     /// Still on the Lock Screen and able to take an update: not ended by iOS, the user or NOOP.
     private static func isShowing(_ activity: Activity<NOOPActivityAttributes>) -> Bool {
         activity.activityState == .active || activity.activityState == .stale
     }
 
     private func end() async {
+        activityStateTask?.cancel()
+        activityStateTask = nil
+        setRealtimeDemand(false)
         // End every NOOP Live Activity, not just our cached handle — covers a straggler from a prior
         // session we never re-adopted (#341) and any rare duplicate. Iterating the live list is the
         // only way to reach activities this controller instance never started.

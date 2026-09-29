@@ -26,6 +26,7 @@ struct LiveView: View {
     /// manager (where bands are paired / switched). The shell (sidebar on macOS, a sheet on iOS) routes
     /// the request; LiveView never needs to know which.
     @EnvironmentObject private var router: NavRouter
+    @State private var realtimeRequest = LiveScreenRealtimeRequest()
 
     /// Which strap the user is pairing — persists across launches. Drives which
     /// BLE service we scan for so a WHOOP 4.0 scan never hangs on a WHOOP 5 wrist.
@@ -165,7 +166,11 @@ struct LiveView: View {
             }
         }
         .onAppear { refreshLiveSession(); consumeActiveWorkoutRequest() }
-        .onDisappear { model.stopRealtimeHR() }
+        .onDisappear { updateRealtimeRequest(visible: false) }
+        .onChangeCompat(of: activeIsWhoop) { _ in
+            updateRealtimeRequest(visible: realtimeRequest.isVisible)
+            reconnectLiveSession()
+        }
         // A fresh bond/connection re-arms the BLE stream (Apple must re-send startRealtime on a new
         // connection) WITHOUT bumping the ref-count — `refreshLiveSession`'s `startRealtimeHR` already
         // counted this screen once on `.onAppear`, balanced by the single `stopRealtimeHR` above.
@@ -772,11 +777,16 @@ struct LiveView: View {
         .disabled(!live.connected)
     }
 
-    /// Live tab appeared: take a ref-count on the realtime stream (arms it on the 0→1 edge) and pull a
-    /// battery reading. Balanced by the single `stopRealtimeHR()` on `.onDisappear`.
+    private func updateRealtimeRequest(visible: Bool) {
+        realtimeRequest.update(visible: visible, isWhoop: activeIsWhoop) { requested in
+            if requested { model.startRealtimeHR() } else { model.stopRealtimeHR() }
+        }
+    }
+
+    /// Register screen intent before checking the link, so connecting later can arm the stream.
     private func refreshLiveSession() {
+        updateRealtimeRequest(visible: true)
         guard activeConnection else { return }
-        model.startRealtimeHR()
         model.getBattery()
     }
 

@@ -3,6 +3,53 @@ import XCTest
 import WhoopStore
 
 final class RealtimeDemandTests: XCTestCase {
+    func testLiveScreenRequestsBeforeConnectionAndReleasesOnlyItsOwnRequest() {
+        var screen = LiveScreenRealtimeRequest()
+        var demand = RealtimeDemand()
+        demand.addScreen() // Another live display already owns a request.
+        var transitions: [Bool] = []
+        func update(visible: Bool, isWhoop: Bool) {
+            screen.update(visible: visible, isWhoop: isWhoop) { requested in
+                transitions.append(requested)
+                if requested { demand.addScreen() } else { demand.removeScreen() }
+            }
+        }
+
+        // Appearing before discovery/bonding still registers intent for the post-bond arm.
+        update(visible: true, isWhoop: true)
+        XCTAssertEqual(demand.screens, 2)
+        XCTAssertTrue(demand.wantsStream)
+        update(visible: true, isWhoop: true) // Repeated lifecycle delivery cannot leak an owner.
+        XCTAssertEqual(demand.screens, 2)
+        demand.isBackground = true
+        XCTAssertFalse(demand.wantsStream)
+        demand.isBackground = false
+        XCTAssertTrue(demand.wantsStream)
+        update(visible: false, isWhoop: true)
+        update(visible: false, isWhoop: true)
+        XCTAssertEqual(demand.screens, 1)
+        XCTAssertEqual(transitions, [true, false])
+    }
+
+    func testSwitchingLiveDeviceBalancesOnlyTheWhoopRequest() {
+        var screen = LiveScreenRealtimeRequest()
+        var transitions: [Bool] = []
+        func update(visible: Bool, isWhoop: Bool) {
+            screen.update(visible: visible, isWhoop: isWhoop) { transitions.append($0) }
+        }
+        update(visible: true, isWhoop: false)
+        update(visible: false, isWhoop: false)
+        XCTAssertEqual(transitions, [], "A ring screen must not release another screen's request")
+        update(visible: true, isWhoop: false)
+        update(visible: true, isWhoop: true)
+        update(visible: true, isWhoop: false)
+        update(visible: true, isWhoop: true)
+        update(visible: false, isWhoop: true)
+        XCTAssertEqual(transitions, [true, false, true, false])
+        XCTAssertFalse(screen.isRequested)
+        XCTAssertFalse(screen.isVisible)
+    }
+
     func testLockAndUnlockPreserveVisibleOwnersWithoutKeepingStreamOpen() {
         var demand = RealtimeDemand()
         demand.addScreen()
@@ -33,6 +80,45 @@ final class RealtimeDemandTests: XCTestCase {
         XCTAssertTrue(demand.wantsStream)
         demand.setSession(.liveCoaching, active: false)
         XCTAssertFalse(demand.wantsStream)
+    }
+
+    func testLiveActivityKeepsStreamWhenPhoneLocksAndReleasesOnDismissal() {
+        var demand = RealtimeDemand()
+        demand.addScreen()
+        demand.setSession(.liveActivity, active: true)
+        demand.isBackground = true
+        XCTAssertFalse(demand.wantsStream)
+        XCTAssertTrue(demand.wantsLightweightHR)
+        demand.removeScreen()
+        XCTAssertFalse(demand.wantsStream)
+        XCTAssertTrue(demand.wantsLightweightHR)
+        demand.setSession(.liveActivity, active: false)
+        XCTAssertFalse(demand.wantsStream)
+        XCTAssertFalse(demand.wantsLightweightHR)
+    }
+
+    func testBannerRawProbeIsBoundedAndCannotReplaceFullOrUnhealthyStreaming() {
+        let now = Date(timeIntervalSince1970: 1_000)
+        func due(_ last: Date? = nil, banner: Bool = true, full: Bool = false,
+                 connected: Bool = true, fallback: Bool = false, backfilling: Bool = false,
+                 running: Bool = false) -> Bool {
+            LiveActivityRawProbePolicy.shouldStart(now: now, lastStart: last, banner: banner,
+                fullStream: full, connected: connected, whoop4: true, fallback: fallback,
+                backfilling: backfilling, alreadyRunning: running)
+        }
+        XCTAssertTrue(due())
+        XCTAssertFalse(due(now.addingTimeInterval(-24)))
+        XCTAssertTrue(due(now.addingTimeInterval(-25)))
+        XCTAssertFalse(due(banner: false))
+        XCTAssertFalse(due(full: true))
+        XCTAssertFalse(due(connected: false))
+        XCTAssertFalse(due(fallback: true))
+        XCTAssertFalse(due(backfilling: true))
+        XCTAssertFalse(due(running: true))
+        XCTAssertFalse(LiveActivityRawProbePolicy.shouldStart(now: now, lastStart: nil,
+            banner: true, fullStream: false, connected: true, whoop4: false, fallback: false,
+            backfilling: false, alreadyRunning: false))
+        XCTAssertEqual(LiveActivityRawProbePolicy.maxDuration, 4)
     }
 
     func testColdBackgroundLaunchDoesNotArmARecreatedScreen() {

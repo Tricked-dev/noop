@@ -54,6 +54,11 @@ public final class LiveState: ObservableObject {
     /// radio-off / connect-fail / disconnect). Twin of the Android LiveState.streamingLiveHR.
     @Published public var streamingLiveHR: Bool = false
     @Published public var heartRate: Int? = nil
+    /// A bounded banner probe completed with a valid sample. Repeated BPM values still need to
+    /// renew the Live Activity's stale date, without publishing every raw frame to the whole UI.
+    @Published public private(set) var liveActivitySampleSeq = 0
+
+    public func noteLiveActivitySample() { liveActivitySampleSeq &+= 1 }
     /// Whether the heavy R10/R11 realtime burst is currently armed (the "live feed"). Tracks the
     /// realtime INTENT (startRealtime/stopRealtime), NOT `heartRate` — the lightweight 0x2A37 profile
     /// keeps setting heartRate while bonded, so a heartRate-driven toggle could never read "off". The

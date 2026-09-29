@@ -1461,6 +1461,9 @@ final class AppModel: ObservableObject {
     /// A recording session owns its stream even with every screen hidden.
     func setRealtimeSession(_ session: RealtimeDemand.Session, active: Bool) {
         realtimeDemand.setSession(session, active: active)
+        if session == .liveActivity {
+            ble.setLiveActivityRealtime(active)
+        }
         reconcileRealtimeDemand()
     }
 
@@ -1474,6 +1477,9 @@ final class AppModel: ObservableObject {
         let wanted = realtimeDemand.wantsStream
         guard wanted != appliedRealtimeDemand else { return }
         appliedRealtimeDemand = wanted
+        live.append(log: "Realtime demand: stream=\(wanted) screens=\(realtimeDemand.screens) "
+            + "sessions=\(realtimeDemand.sessions.count) background=\(realtimeDemand.isBackground) "
+            + "connected=\(live.connected) bonded=\(live.bonded)")
         if wanted {
             resetSmoothing()
             ble.startRealtime()

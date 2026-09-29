@@ -831,6 +831,14 @@ public final class BLEManager: NSObject, ObservableObject {
     /// AppModel combines visible-screen demand with active recording sessions. Hidden screens do
     /// not contribute, but recording sessions do. Separate from continuous HRV capture below.
     private var screenWantsRealtime = false
+    private var liveActivityWantsRealtime = false
+    private var fullRealtimeWasWanted = false
+    private var bannerRawProbeActive = false
+    private var bannerRawProbeLastStart: Date?
+    private var bannerRawProbeTimeout: DispatchWorkItem?
+    #if os(iOS)
+    private var bannerRawProbeBackgroundTask: UIBackgroundTaskIdentifier = .invalid
+    #endif
     /// True while the "Continuous HRV capture" preference wants the realtime stream held open even with
     /// no Live screen visible, so the strap banks dense beat-to-beat R-R 24/7 (better overnight
     /// HRV/recovery/sleep). The second input to `wantsRealtime`. Default off; set by
@@ -3406,6 +3414,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// the R10/R11 realtime stream is also on. Keep that stream scoped to the Live tab and stop it
     /// on disappear so it does not permanently compete with historical offload.
     public func startRealtime() {
+        finishBannerRawProbe(stopRaw: false)
         #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
         if !screenWantsRealtime && OvernightDiagnostics.isActive {
             liveStartupTrace.begin(now: ProcessInfo.processInfo.systemUptime)
@@ -3459,6 +3468,54 @@ public final class BLEManager: NSObject, ObservableObject {
     public func setKeepRealtimeForData(_ keep: Bool) {
         keepRealtimeForData = keep
         reconcileRealtime()
+    }
+
+    /// The Lock Screen needs the low-bandwidth HR characteristic, not the raw R10/R11 burst.
+    public func setLiveActivityRealtime(_ active: Bool) {
+        guard liveActivityWantsRealtime != active else { return }
+        if !active { finishBannerRawProbe() }
+        liveActivityWantsRealtime = active
+        log("Live HR banner: lightweight realtime \(active ? "on" : "off")")
+        reconcileRealtime()
+        if active { startBannerRawProbeIfDue() }
+    }
+
+    /// WHOOP 4 sometimes leaves 0x2A37 silent. Sample raw briefly, then return to the light feed.
+    private func startBannerRawProbeIfDue() {
+        let now = Date()
+        guard LiveActivityRawProbePolicy.shouldStart(now: now, lastStart: bannerRawProbeLastStart,
+            banner: liveActivityWantsRealtime, fullStream: screenWantsRealtime || continuousCaptureWantsNow(),
+            connected: state.connected, whoop4: selectedModel.deviceFamily == .whoop4,
+            fallback: standardHRFallback, backfilling: backfilling,
+            alreadyRunning: bannerRawProbeActive) else { return }
+        #if os(iOS)
+        let task = UIApplication.shared.beginBackgroundTask(withName: "Live HR sample") { [weak self] in
+            DispatchQueue.main.async { self?.finishBannerRawProbe() }
+        }
+        if UIApplication.shared.applicationState != .active && task == .invalid { return }
+        bannerRawProbeBackgroundTask = task
+        #endif
+        bannerRawProbeActive = true
+        bannerRawProbeLastStart = now
+        send(.sendR10R11Realtime, payload: [0x01])
+        let timeout = DispatchWorkItem { [weak self] in self?.finishBannerRawProbe() }
+        bannerRawProbeTimeout = timeout
+        DispatchQueue.main.asyncAfter(deadline: .now() + LiveActivityRawProbePolicy.maxDuration,
+                                      execute: timeout)
+    }
+
+    private func finishBannerRawProbe(stopRaw: Bool = true) {
+        guard bannerRawProbeActive else { return }
+        bannerRawProbeActive = false
+        bannerRawProbeTimeout?.cancel()
+        bannerRawProbeTimeout = nil
+        if stopRaw { send(.sendR10R11Realtime, payload: [0x00]) }
+        #if os(iOS)
+        if bannerRawProbeBackgroundTask != .invalid {
+            UIApplication.shared.endBackgroundTask(bannerRawProbeBackgroundTask)
+            bannerRawProbeBackgroundTask = .invalid
+        }
+        #endif
     }
 
     /// #477 (Settings): battery-% at/below which the offload cadence stretches while discharging (0 = off).
@@ -3573,7 +3630,12 @@ public final class BLEManager: NSObject, ObservableObject {
     /// framing); otherwise the want is remembered and the post-bond branch arms it. Mirrors the Android
     /// `reconcileRealtime`.
     private func reconcileRealtime() {
-        let want = screenWantsRealtime || continuousCaptureWantsNow()
+        let fullWant = screenWantsRealtime || continuousCaptureWantsNow()
+        if fullRealtimeWasWanted && !fullWant {
+            send(.sendR10R11Realtime, payload: [0x00])
+        }
+        fullRealtimeWasWanted = fullWant
+        let want = fullWant || liveActivityWantsRealtime
         wantsRealtime = want   // keep-alive + post-bond arm-on-connect read this derived value
         guard want != realtimeArmed else { return }                      // no edge — nothing to send
         guard selectedModel.deviceFamily == .whoop4 || state.bonded else { return }   // can't reach the strap yet
@@ -4935,9 +4997,10 @@ public final class BLEManager: NSObject, ObservableObject {
         // the false→true edge. Ticks with no transition cost one predicate evaluation. This runs BEFORE
         // the WHOOP4-only guard below so a 5/MG stream also disarms/re-arms on the window edges (send()
         // routes the 5/MG toggle and drops the WHOOP4-framed R10/R11 stop for it).
-        let captureWantNow = screenWantsRealtime || continuousCaptureWantsNow()
-        if wantsRealtime != captureWantNow, keepRealtimeForData, !screenWantsRealtime {
-            if captureWantNow {
+        let fullStreamWantNow = screenWantsRealtime || continuousCaptureWantsNow()
+        let realtimeWantNow = fullStreamWantNow || liveActivityWantsRealtime
+        if wantsRealtime != realtimeWantNow, keepRealtimeForData, !screenWantsRealtime {
+            if fullStreamWantNow {
                 log("Continuous HRV: overnight window opened; arming the realtime stream (#927)")
             } else {
                 send(.sendR10R11Realtime, payload: [0x00])   // stop the heavy burst, like stopRealtime
@@ -4951,8 +5014,11 @@ public final class BLEManager: NSObject, ObservableObject {
         guard selectedModel.deviceFamily == .whoop4 else { return }
         // Never re-arm the heavy R10/R11 burst once the marginal-radio fallback has tripped (#80) — that
         // would just re-trigger the drop the keep-alive is meant to prevent. 0x2A37 keeps the HR flowing.
-        if wantsRealtime && !standardHRFallback {
+        if realtimeWantNow {
             realtimeArmed = true   // keep reconcileRealtime()'s edge tracking in sync with the re-arm
+            if !fullStreamWantNow || standardHRFallback {
+                send(.toggleRealtimeHR, payload: [0x01])
+            } else {
             #if os(iOS)
             RealtimeArmSequence.perform(enableHR: {
                 send(.toggleRealtimeHR, payload: [0x01])
@@ -4963,7 +5029,9 @@ public final class BLEManager: NSObject, ObservableObject {
             send(.sendR10R11Realtime, payload: [0x01])
             send(.toggleRealtimeHR, payload: [0x01])
             #endif
+            }
         }   // re-arm so it can't lapse
+        if !fullStreamWantNow { startBannerRawProbeIfDue() }
         keepAliveTick += 1
         // #battery: ~60 s normally, ~30 s while charging (see `batteryPollDue`).
         //
@@ -6383,6 +6451,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         }
         bondedAt = nil   // cleared after the bond-loop detector above read it (#617)
         state.connected = false
+        finishBannerRawProbe(stopRaw: false)
         state.encryptedBond = false   // cleared with didBond; next session must re-prove the bond (#69)
         state.charging = nil          // a stale charging flag must not outlive the link
         state.batteryMv = nil         // #592: a stale pack voltage must not outlive the link
@@ -7068,7 +7137,7 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
             // #927: RE-DERIVE the want at arm time, never the precomputed `wantsRealtime`: that value can
             // be up to a keep-alive tick (30 s) stale, and a reconnect just OUTSIDE the overnight window
             // would re-arm the flood from it and stay armed until the next tick.
-            let realtimeWantNow = screenWantsRealtime || continuousCaptureWantsNow()
+            let realtimeWantNow = screenWantsRealtime || liveActivityWantsRealtime || continuousCaptureWantsNow()
             wantsRealtime = realtimeWantNow
             if realtimeWantNow && !whoop5RealtimeArmed {
                 whoop5RealtimeArmed = true
@@ -7187,10 +7256,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         // #927: RE-DERIVE the want at arm time (same reasoning as the 5/MG branch above): a reconnect
         // outside the overnight window must not arm the flood from a stale precomputed `wantsRealtime`
         // (up to a keep-alive tick stale); the keep-alive would then hold it armed for another 30 s.
-        let realtimeWantNow = screenWantsRealtime || continuousCaptureWantsNow()
+        let fullStreamWantNow = screenWantsRealtime || continuousCaptureWantsNow()
+        let realtimeWantNow = fullStreamWantNow || liveActivityWantsRealtime
         wantsRealtime = realtimeWantNow
         if realtimeWantNow {
-            if standardHRFallback {
+            if !fullStreamWantNow {
+                realtimeArmed = true
+                log("Realtime HR: Live Activity using standard HR only")
+                send(.toggleRealtimeHR, payload: [0x01])
+            } else if standardHRFallback {
                 // #80: this radio repeatedly dropped the link the instant we armed the R10/R11 burst.
                 // Skip the heavy stream entirely; live HR rides the already-subscribed low-bandwidth
                 // 0x2A37 standard profile (subscribed by enableLiveNotifications above). SAFE either way:
@@ -7549,6 +7623,11 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                 // the router + collector re-checks the invariant).
                 let parsed = parseFrame(frame, family: .whoop4)
                 router.handle(parsed: parsed, frame: frame)       // live/UI path
+                if bannerRawProbeActive, parsed.ok,
+                   let hr = parsed.parsed["heart_rate"]?.intValue, (30...220).contains(hr) {
+                    state.noteLiveActivitySample()
+                    finishBannerRawProbe()
+                }
                 #if NOOP_SYNC_DIAGNOSTICS && os(iOS)
                 if parsed.ok, let hr = parsed.parsed["heart_rate"]?.intValue, (30...220).contains(hr) {
                     overnightLastHRAt = Date().timeIntervalSince1970
