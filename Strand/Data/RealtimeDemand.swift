@@ -39,11 +39,15 @@ struct LiveScreenRealtimeRequest {
 enum LiveActivityRawProbePolicy {
     static let maxDuration: TimeInterval = 4
     static let minimumInterval: TimeInterval = 25
+    static let backgroundMinimumInterval: TimeInterval = 300
+    static let readableHRGrace: TimeInterval = 60
 
     static func shouldStart(now: Date, lastStart: Date?, banner: Bool, fullStream: Bool,
                             connected: Bool, whoop4: Bool, fallback: Bool, backfilling: Bool,
-                            alreadyRunning: Bool) -> Bool {
+                            alreadyRunning: Bool, background: Bool = false,
+                            lastReadableStandardHR: Date? = nil) -> Bool {
         banner && !fullStream && connected && whoop4 && !fallback && !backfilling && !alreadyRunning
-            && (lastStart.map { now.timeIntervalSince($0) >= minimumInterval } ?? true)
+            && (lastReadableStandardHR.map { now.timeIntervalSince($0) >= readableHRGrace } ?? true)
+            && (lastStart.map { now.timeIntervalSince($0) >= (background ? backgroundMinimumInterval : minimumInterval) } ?? true)
     }
 }

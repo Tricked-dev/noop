@@ -620,11 +620,6 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Fires if the strap goes silent mid-offload; re-armed on every frame during backfill.
     private var backfillTimeout: DispatchWorkItem?
     private var backfillTimeoutGeneration: UInt64 = 0
-    /// Periodic opportunistic upload while connected. Without it, upload only fires at connect +
-    /// backfill-exit, so during a long live session decoded rows pile up locally and the server
-    /// (dashboard) lags. Started on bond, cancelled on disconnect.
-    private var uploadTimer: DispatchSourceTimer?
-    static let uploadIntervalSeconds = 30
     /// Periodic re-trigger of the type-47 historical offload. This is the PRIMARY continuous metric
     /// source (mirrors how WHOOP syncs): the strap's 14-day biometric store is re-offloaded every
     /// `backfillIntervalSeconds` while connected+bonded, rather than once per connect. Started on
@@ -1321,6 +1316,7 @@ public final class BLEManager: NSObject, ObservableObject {
     /// pick so restoration/reconnect after a relaunch target the right strap.
     private var selectedModel: WhoopModel = .persisted
     private var lastStandardHRLogAt: Date?
+    private var lastReadableStandardHRAt: Date?
     private var syncDeferralLogGate = SyncDeferralLogGate()
     /// Counts unreadable standard heart-rate samples in a row, so a run of them clears the shown heart rate.
     private var heartRateReadability = LiveHeartRateReadability()
@@ -3514,7 +3510,9 @@ public final class BLEManager: NSObject, ObservableObject {
             banner: liveActivityWantsRealtime, fullStream: screenWantsRealtime || continuousCaptureWantsNow(),
             connected: state.connected, whoop4: selectedModel.deviceFamily == .whoop4,
             fallback: standardHRFallback, backfilling: backfilling,
-            alreadyRunning: bannerRawProbeActive) else { return }
+            alreadyRunning: bannerRawProbeActive,
+            background: batteryPollingBackground,
+            lastReadableStandardHR: lastReadableStandardHRAt) else { return }
         #if os(iOS)
         let task = UIApplication.shared.beginBackgroundTask(withName: "Live HR sample") { [weak self] in
             DispatchQueue.main.async { self?.finishBannerRawProbe() }
@@ -6021,6 +6019,7 @@ public final class BLEManager: NSObject, ObservableObject {
         // Only a sample the strap could measure reaches what the app shows (`LiveHeartRateReadability`): a
         // plausible heart rate with skin contact not reported absent. The collector below still gets every one.
         let readable = LiveHeartRateReadability.isReadable(bpm: m.hr, contact: m.contact)
+        if readable { lastReadableStandardHRAt = now }
         // Rare-event evidence, always on: what the strap says about skin contact, logged when it changes (and once
         // at the first sample), so a strap log shows what the band reports when it comes off the wrist.
         if m.contact != lastLoggedHRContact {
@@ -6678,6 +6677,7 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         // was taken on — a stale figure under a fresh connection would be a plain lie.
         state.pagesBehindAtConnect = nil
         lastBatteryReadAt = nil
+        lastReadableStandardHRAt = nil
         lastWhoop4BatteryPollAt = nil
         // #612: the display flag only, not the underlying emptySyncTracker streak (that counter
         // deliberately survives a reconnect — unchanged, existing behaviour). A fresh link re-derives
@@ -6688,8 +6688,6 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         backfillTimeoutGeneration &+= 1
         backfillFrameQueue.removeAll()
         backfillDraining = false
-        uploadTimer?.cancel()
-        uploadTimer = nil
         backfillTimer?.cancel()
         backfillTimer = nil
         keepAliveTimer?.cancel()

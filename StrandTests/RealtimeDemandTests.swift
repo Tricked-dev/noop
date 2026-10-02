@@ -109,6 +109,22 @@ final class RealtimeDemandTests: XCTestCase {
         XCTAssertTrue(due())
         XCTAssertFalse(due(now.addingTimeInterval(-24)))
         XCTAssertTrue(due(now.addingTimeInterval(-25)))
+        XCTAssertFalse(LiveActivityRawProbePolicy.shouldStart(now: now,
+            lastStart: now.addingTimeInterval(-25), banner: true, fullStream: false,
+            connected: true, whoop4: true, fallback: false, backfilling: false,
+            alreadyRunning: false, background: true))
+        XCTAssertTrue(LiveActivityRawProbePolicy.shouldStart(now: now,
+            lastStart: now.addingTimeInterval(-300), banner: true, fullStream: false,
+            connected: true, whoop4: true, fallback: false, backfilling: false,
+            alreadyRunning: false, background: true))
+        XCTAssertFalse(LiveActivityRawProbePolicy.shouldStart(now: now,
+            lastStart: nil, banner: true, fullStream: false, connected: true,
+            whoop4: true, fallback: false, backfilling: false, alreadyRunning: false,
+            lastReadableStandardHR: now.addingTimeInterval(-59)))
+        XCTAssertTrue(LiveActivityRawProbePolicy.shouldStart(now: now,
+            lastStart: nil, banner: true, fullStream: false, connected: true,
+            whoop4: true, fallback: false, backfilling: false, alreadyRunning: false,
+            lastReadableStandardHR: now.addingTimeInterval(-60)))
         XCTAssertFalse(due(banner: false))
         XCTAssertFalse(due(full: true))
         XCTAssertFalse(due(connected: false))
