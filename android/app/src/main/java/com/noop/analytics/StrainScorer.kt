@@ -24,8 +24,14 @@ import kotlin.math.roundToLong
  *   1. Heart-Rate Reserve (Karvonen): HRR = HRmax − RHR.
  *   2. Per-sample intensity as %HRR = (HR − RHR) / HRR × 100, clamped 0..100.
  *   3. TRIMP accumulated over the window:
- *        a. Edwards 5-zone summation (default): sample contributes its zone weight
+ *        a. Edwards-STYLE 5-zone summation (default): sample contributes its zone weight
  *           (1..5 at 50/60/70/80/90 %HRR cut-offs) × duration.
+ *           STYLE, not Edwards: Edwards (1993) defines its five zones on %HRmax, and these cut-offs are
+ *           read off %HRR (#2835, @yashkgp). With HRmax 190 and RHR 50, 133 bpm is 70 %HRmax and so
+ *           zone 3 by the source, against 59 %HRR and zone 1 here. The %HRR reading is deliberate and
+ *           stays: it is the quantity this whole file is built on, and re-cutting the zones on %HRmax
+ *           would move every user's Effort number, which is a scoring change needing its own evidence
+ *           rather than a citation repair. What was wrong was calling it Edwards unqualified.
  *        b. Banister exponential: sample contributes duration × x × 0.64 × e^(b·x).
  *   4. Logarithmic compression onto [0, 100]:
  *        effort = 100 × ln(TRIMP + 1) / ln(D)
@@ -89,12 +95,17 @@ object StrainScorer {
 
     /**
      * Banister's daily ceiling: 24 h held at ΔHRR = 1.0. Unlike Edwards' 7200 this is SEX-DEPENDENT,
-     * because the exponent `b` differs — which is the whole reason [strainDenominator] cannot be reused
+     * because BOTH coefficients differ — which is the whole reason [strainDenominator] cannot be reused
      * for it. Feeding Banister TRIMP through the Edwards denominator would score every day against a
-     * ceiling ~14% (men) or ~32% (women) higher than Banister can actually reach, so nobody would ever
+     * ceiling ~13% (men) or ~9% (women) higher than Banister can actually reach, so nobody would ever
      * see 100 and the two methods would not be on the same axis. (#1545)
+     *
+     * Those two percentages moved with #2835, and the women's figure moved a long way: 32% on the old
+     * single multiplier, 9% once the published 0.86 is used, because the ceiling itself rises from 4,896
+     * to 6,579. The men's is unchanged at 6,286.
      */
-    fun banisterDailyCeiling(b: Double): Double = 24.0 * 60.0 * 1.0 * banisterScale * kotlin.math.exp(b)
+    fun banisterDailyCeiling(c: BanisterCoefficients): Double =
+        24.0 * 60.0 * 1.0 * c.scale * kotlin.math.exp(c.b)
 
     /**
      * The %HRR a waking, sedentary body sits at — the "cost of being alive", not training load.
@@ -114,8 +125,8 @@ object StrainScorer {
     const val banisterSedentaryHRR: Double = 0.10
 
     /** TRIMP per minute at [banisterSedentaryHRR] — the rate subtracted from every day. */
-    fun banisterBaselineRatePerMinute(b: Double): Double =
-        banisterScale * banisterSedentaryHRR * kotlin.math.exp(b * banisterSedentaryHRR)
+    fun banisterBaselineRatePerMinute(c: BanisterCoefficients): Double =
+        c.scale * banisterSedentaryHRR * kotlin.math.exp(c.b * banisterSedentaryHRR)
 
     /**
      * The sedentary TRIMP accrued over [minutes] — subtracted from a day's Banister TRIMP so the axis
@@ -125,7 +136,8 @@ object StrainScorer {
      * theoretical maximum day still maps to exactly [maxStrain]. Anchoring only the bottom would trade one
      * mismatched end for the other.
      */
-    fun banisterBaseline(minutes: Double, b: Double): Double = banisterBaselineRatePerMinute(b) * minutes
+    fun banisterBaseline(minutes: Double, c: BanisterCoefficients): Double =
+        banisterBaselineRatePerMinute(c) * minutes
 
 
     /**
@@ -136,10 +148,10 @@ object StrainScorer {
     fun logMapDenominator(method: Method, sex: String): Double = when (method) {
         Method.EDWARDS -> strainDenominator
         Method.BANISTER -> {
-            val b = if (sex.lowercase().startsWith("f")) banisterBWomen else banisterBMen
+            val c = banisterCoefficients(sex.lowercase().startsWith("f"))
             // Ceiling MINUS a full day of sedentary baseline, matching what is subtracted from the day
             // itself, so both ends of the axis line up with Edwards (#1624).
-            banisterDailyCeiling(b) - banisterBaseline(24.0 * 60.0, b) + 1.0
+            banisterDailyCeiling(c) - banisterBaseline(24.0 * 60.0, c) + 1.0
         }
     }
     val lnStrainDenominator: Double get() = ln(strainDenominator)
@@ -156,12 +168,60 @@ object StrainScorer {
     /** Upper percentile for the observed-HRmax estimate. */
     const val hrmaxPercentile: Double = 99.5
 
-    /** Banister coefficients. */
+    /**
+     * Banister's two coefficients, which are a PAIR and must travel as one (#2835, @yashkgp).
+     *
+     * Morton, Fitz-Clarke and Banister (1990) publish `0.64·e^(1.92x)` for men and `0.86·e^(1.67x)` for
+     * women. This file used to hold the exponent as two sex-selected constants and the coefficient as a
+     * single 0.64 for everyone, so a woman was scored with the women's exponent and the men's
+     * coefficient: neither published pair.
+     *
+     * The repair is the type, not the number. Keeping them in one value makes selecting half of a pair
+     * impossible to express, which is what went wrong; two loose constants beside each other invite
+     * exactly the omission that happened here, and a comment asking the next reader to remember would
+     * have been weaker than a signature that cannot be called wrongly.
+     */
+    data class BanisterCoefficients(
+        /** The multiplier, 0.64 for men and 0.86 for women. */
+        val scale: Double,
+        /** The exponent, 1.92 for men and 1.67 for women. */
+        val b: Double,
+    )
+
+    /**
+     * The four published numbers, kept as named constants because the parity ledger inventories literal
+     * constants and pairs them across the two languages. These four names are what holds Kotlin and
+     * Swift to the SAME four numbers, and coefficients are exactly the kind of thing worth pinning, this
+     * issue being the evidence.
+     *
+     * [banisterScale] KEEPS ITS NAME, which is the one awkward part and is worth stating plainly. It is
+     * the men's multiplier and always was; the defect was that women read it too. The parity ratchet does
+     * not permit removing a constant pair at all, and no disposition can waive one, so renaming it to
+     * `banisterScaleMen` for symmetry is not available. The value and its correct applicability are
+     * unchanged, so retaining the name costs nothing beyond the asymmetry you see here.
+     *
+     * Use [banisterCoefficients] rather than any of these. Reading one half directly is how the defect
+     * happened.
+     */
     const val banisterScale: Double = 0.64
+    const val banisterScaleWomen: Double = 0.86
     const val banisterBMen: Double = 1.92
     const val banisterBWomen: Double = 1.67
 
-    /** Edwards zone cut-offs as (%HRR threshold, weight), highest-first. */
+    /**
+     * The published pair for this wearer. [sexF] is the single bit the recipe reads, so "female", "f"
+     * and "F" all land here together.
+     *
+     * Swift twin: `banisterCoefficients`.
+     */
+    fun banisterCoefficients(sexF: Boolean): BanisterCoefficients =
+        if (sexF) BanisterCoefficients(scale = banisterScaleWomen, b = banisterBWomen)
+        else BanisterCoefficients(scale = banisterScale, b = banisterBMen)
+
+    /** Edwards-STYLE zone cut-offs as (%HRR threshold, weight), highest-first.
+     *
+     *  The thresholds are %HRR, where Edwards (1993) defines its zones on %HRmax (#2835). Deliberate,
+     *  and documented at the pipeline note in this file's header rather than restated here. */
     val edwardsZones: List<Pair<Double, Int>> = listOf(
         90.0 to 5, 80.0 to 4, 70.0 to 3, 60.0 to 2, 50.0 to 1,
     )
@@ -360,7 +420,7 @@ object StrainScorer {
         restingHR: Double,
         hrReserve: Double,
         durations: List<Double>,
-        b: Double,
+        c: BanisterCoefficients,
         /** Per-minute rate treated as "no effort" and subtracted from EVERY sample, floored at zero
          *  (#1624). Zero — the default — is the original, unfloored Banister recipe, so every existing
          *  caller and test is byte-identical. Pass [banisterBaselineRatePerMinute] to score the excess
@@ -376,7 +436,7 @@ object StrainScorer {
         for (i in hr.indices) {
             val x = pctHRR(hr[i].bpm.toDouble(), restingHR, hrReserve) / 100.0
             if (x > 0) {
-                val rate = x * banisterScale * exp(b * x)
+                val rate = x * c.scale * exp(c.b * x)
                 acc += durations[i] * (rate - floorRatePerMinute).coerceAtLeast(0.0)
             }
         }
@@ -470,6 +530,102 @@ object StrainScorer {
         "effort calib day=$day hrmax=${WorkoutDetector.round0(hrmax)}" +
             " src=$hrmaxSource tanaka=${WorkoutDetector.round0(tanaka)}" +
             " peak=${WorkoutDetector.round0(observedPeak)} rhr=${WorkoutDetector.round0(restingHR)}"
+
+    /**
+     * The ` sustained=` field appended to [dayCalibrationLine]: the same day's peak held across
+     * consecutive samples ([sustainedPeak]), so a run of lines shows how much of each day's `peak` was a
+     * single sample. Its own function, appended by the caller, so the calibration line's existing contract
+     * stays as it is. Same formatter as the fields before it; null renders as `nil`, not 0.
+     *
+     * Byte-identical to the Swift twin `sustainedPeakField`.
+     */
+    fun sustainedPeakField(sustainedPeak: Double?): String =
+        " sustained=${WorkoutDetector.round0(sustainedPeak)}"
+
+    /** Consecutive samples a `sustained` peak must hold for, and the span they must fit in. */
+    const val sustainedPeakSamples = 5
+    const val sustainedPeakWindowS = 60L
+
+    /**
+     * The highest bpm that [sustainedPeakSamples] consecutive samples all reached within
+     * [sustainedPeakWindowS] seconds, or null when no run of samples is that dense.
+     *
+     * The `sustained` field beside the raw `peak` on the `effort calib` line (#2438). On ring days the raw
+     * daily maximum is nearly always one isolated sample: over 60 days of Oura heart rate it sat above the
+     * age formula on 58 days, and this value on none, while 98 % of the samples at or above 165 bpm lay in
+     * a ±30 s window whose median was under 120. A step-0 rule read off the raw peak would raise a ring
+     * wearer's HRmax from artefacts, so contributed logs carry both, and the rule can be written against
+     * whichever one holds up on straps.
+     *
+     * The minimum over each run, not its mean: one spike inside five ordinary samples must not lift the
+     * value, which is the whole point of the field. Null rather than a fallback to the raw peak, so a sparse
+     * day reads as "not measured" and not as "held".
+     *
+     * Byte-identical to the Swift twin `sustainedPeak`.
+     */
+    fun sustainedPeak(
+        hr: List<HrSample>,
+        samples: Int = sustainedPeakSamples,
+        windowS: Long = sustainedPeakWindowS,
+    ): Double? {
+        if (samples <= 0 || hr.size < samples) return null
+        // Ordered by (ts, bpm), not ts alone: Swift's sort is not stable and Kotlin's is, so two samples
+        // sharing a second could otherwise form different runs on the two platforms.
+        val sorted = hr.sortedWith(compareBy({ it.ts }, { it.bpm }))
+        var best: Int? = null
+        for (i in 0..(sorted.size - samples)) {
+            val last = i + samples - 1
+            if (sorted[last].ts - sorted[i].ts > windowS) continue
+            val held = (i..last).minOf { sorted[it].bpm }
+            best = maxOf(best ?: held, held)
+        }
+        return best?.toDouble()
+    }
+
+    /**
+     * The ` span=` field appended after `sustained=`: how many seconds the run behind that value covered
+     * ([sustainedPeakSpan]). Its own function, appended by the caller, like [sustainedPeakField]. Null
+     * renders as `nil`, not 0.
+     *
+     * Byte-identical to the Swift twin `sustainedPeakSpanField`.
+     */
+    fun sustainedPeakSpanField(spanS: Long?): String = " span=${spanS ?: "nil"}"
+
+    /**
+     * The seconds covered by the run that sets [sustainedPeak], or null when that is null.
+     *
+     * [sustainedPeak] bounds a run's span from above only, so the same value can stand for five samples
+     * inside four seconds of dense heart rate or across a whole minute of sparse heart rate. On one ring
+     * with all-day heart rate the winning run covered 4 s on some days and 57 s on others. This field
+     * carries the span beside the value, so a contributed log says which kind of hold it was.
+     *
+     * When several runs reach the same value, the longest span among them: the strongest evidence that
+     * the value was held. Same rule and same ordering as [sustainedPeak], so the two fields always
+     * describe the same run.
+     *
+     * Byte-identical to the Swift twin `sustainedPeakSpan`.
+     */
+    fun sustainedPeakSpan(
+        hr: List<HrSample>,
+        samples: Int = sustainedPeakSamples,
+        windowS: Long = sustainedPeakWindowS,
+    ): Long? {
+        if (samples <= 0 || hr.size < samples) return null
+        val sorted = hr.sortedWith(compareBy({ it.ts }, { it.bpm }))
+        var bestHeld: Int? = null
+        var bestSpan = 0L
+        for (i in 0..(sorted.size - samples)) {
+            val last = i + samples - 1
+            val span = sorted[last].ts - sorted[i].ts
+            if (span > windowS) continue
+            val held = (i..last).minOf { sorted[it].bpm }
+            val b = bestHeld
+            if (b != null && (b > held || (b == held && bestSpan >= span))) continue
+            bestHeld = held
+            bestSpan = span
+        }
+        return if (bestHeld == null) null else bestSpan
+    }
 
     /**
      * One line naming what an Effort score was computed FROM, or why it could not be computed.
@@ -572,11 +728,11 @@ object StrainScorer {
 
         val trimp: Double = when (method) {
             Method.BANISTER -> {
-                val b = if (sex.lowercase().startsWith("f")) banisterBWomen else banisterBMen
+                val c = banisterCoefficients(sex.lowercase().startsWith("f"))
                 // Excess over the sedentary baseline for the SAME span, floored at zero. Without this a
                 // desk day scores ~45 on a 0-100 axis whose bottom is supposed to be no exertion (#1624).
-                banisterTRIMP(hr, restingHR, hrReserve, durations, b,
-                    floorRatePerMinute = banisterBaselineRatePerMinute(b))
+                banisterTRIMP(hr, restingHR, hrReserve, durations, c,
+                    floorRatePerMinute = banisterBaselineRatePerMinute(c))
             }
             Method.EDWARDS -> {
                 edwardsTRIMP(hr, restingHR, hrReserve, durations)
