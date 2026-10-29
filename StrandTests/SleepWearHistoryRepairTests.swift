@@ -18,6 +18,7 @@ final class SleepWearHistoryRepairTests: XCTestCase {
             "noop.analyzeWatermark", "analyzeRecent.stepsMotionCache.v1",
             "noop.hrvBaselineEpoch", "noop.recoveryBaselineEpoch", UnitPrefs.hrvWindowKey,
             RescoreBackgroundScheduler.owedKey, RescoreBackgroundScheduler.owedTokenKey,
+            RescoreBackgroundScheduler.owedWindowKey,
             RescoreBackgroundScheduler.lastPassSecondsKey, DayCycleMode.storageKey,
             PuffinExperiment.experimentalSleepV2Key, PuffinExperiment.motionAwareWakeKey,
         ]
@@ -101,7 +102,7 @@ final class SleepWearHistoryRepairTests: XCTestCase {
                 if line.contains("queued behind a 40-day pass") { queuedWasObserved = true }
                 if line.contains("re-score: done") {
                     completedPasses += 1
-                    if completedPasses == 3 { followUpFinished.fulfill() }
+                    if queueForcedRescore, completedPasses == 4 { followUpFinished.fulfill() }
                 }
             }
             // The normal recent pass cannot repair this older night.
@@ -118,6 +119,7 @@ final class SleepWearHistoryRepairTests: XCTestCase {
                 await fulfillment(of: [followUpFinished], timeout: 30)
                 XCTAssertFalse(engine.results.contains { $0.day == AnalyticsEngine.dayString(dayStart, offsetSec: tz) },
                     "The queued recent pass must not repeat the older-than-21-day repair")
+                XCTAssertFalse(RescoreBackgroundScheduler.isRescoreOwed)
             }
             let after = try await store.sleepSessions(deviceId: source + "-noop", from: dayStart, to: dayStart + 86400, limit: 100)
             XCTAssertEqual(after.count, 1)
@@ -154,6 +156,55 @@ final class SleepWearHistoryRepairTests: XCTestCase {
             }
             task.cancel()
             await task.value
+            XCTAssertFalse(UserDefaults.standard.bool(forKey: IntelligenceEngine.sleepWearRescoreFlagKey))
+        }
+    }
+
+    func testWideRepairSavesRecentSleepBeforeAnInterruptedHistoryPass() async throws {
+        try await withPreferences {
+            let store = try await WhoopStore.inMemory()
+            let source = "my-whoop"
+            let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+            try registry.add(PairedDevice(id: source, brand: "WHOOP", model: "4.0",
+                sourceKind: .liveBLE, capabilities: [.hr, .hrv], status: .active, addedAt: 1, lastSeenAt: 1))
+            let now = Int(Date().timeIntervalSince1970)
+            let tz = TimeZone.current.secondsFromGMT()
+            let recentDay = IntelligenceEngine.midnightLocal(now, offsetSec: tz) - 86400
+            let oldDay = recentDay - 35 * 86400
+            let spans = [recentDay, oldDay].map { day -> Streams in
+                let start = day + 2 * 3600, end = start + 2 * 3600
+                return Streams(
+                    hr: stride(from: start - 900, through: end, by: 5).map { HRSample(ts: $0, bpm: 50) },
+                    gravity: stride(from: start, through: end, by: 5).map {
+                        GravitySample(ts: $0, x: 0, y: 0, z: 1, unit: "g")
+                    },
+                    events: [WhoopEvent(ts: start - 1800, kind: "WRIST_OFF(10)", payload: [:])])
+            }
+            for streams in spans { _ = try await store.insert(streams, deviceId: source) }
+            let repo = Repository(deviceId: source)
+            repo.setStoreForTesting(store)
+            let engine = IntelligenceEngine(repo: repo, profile: ProfileStore(), deviceId: source)
+            let cancellation = RescoreCancellation()
+            var recentSaved = false
+            engine.diagnosticSink = { line, _ in
+                if line.contains("recent window saved") {
+                    recentSaved = true
+                    cancellation.cancel()
+                }
+            }
+            RescoreBackgroundScheduler.markRescoreOwed(maxDays: 40)
+            await RescoreCancellation.$current.withValue(cancellation) {
+                await engine.runSleepWearRescoreIfNeeded(historyDays: 40)
+            }
+            XCTAssertTrue(recentSaved)
+            let recent = try await store.sleepSessions(deviceId: source + "-noop",
+                from: recentDay, to: recentDay + 86400, limit: 100)
+            let old = try await store.sleepSessions(deviceId: source + "-noop",
+                from: oldDay, to: oldDay + 86400, limit: 100)
+            XCTAssertEqual(recent.count, 1)
+            XCTAssertTrue(old.isEmpty)
+            XCTAssertTrue(RescoreBackgroundScheduler.isRescoreOwed)
+            XCTAssertEqual(RescoreBackgroundScheduler.owedWindowDays, 40)
             XCTAssertFalse(UserDefaults.standard.bool(forKey: IntelligenceEngine.sleepWearRescoreFlagKey))
         }
     }

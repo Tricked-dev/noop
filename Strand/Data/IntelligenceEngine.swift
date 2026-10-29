@@ -716,6 +716,13 @@ final class IntelligenceEngine: ObservableObject {
         // Launch and scene activation can overlap while the store handle is being awaited.
         sleepWearRescoreRunning = true
         defer { sleepWearRescoreRunning = false }
+        // A wide repair can take longer than a foreground session. Persist the current sleep window
+        // first so an interrupted repair cannot keep new nights absent from the Sleep screen.
+        if historyDays > 21 {
+            await analyzeRecent(maxDays: 21, triggerLabel: "history-repair-recent",
+                                prioritizeRecent: true, preserveWideDebt: true)
+            guard !Task.isCancelled, !RescoreBackgroundScheduler.isBackgrounded else { return }
+        }
         await analyzeRecent(maxDays: historyDays, triggerLabel: "sleep-wear-history-repair",
                             preserveUnscoredHistory: true) {
             UserDefaults.standard.set(true, forKey: Self.effortRescoreFlagKey)
@@ -783,9 +790,10 @@ final class IntelligenceEngine: ObservableObject {
     /// live night can be scored against your norm.
     func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
                        triggerLabel: String? = nil, preserveUnscoredHistory: Bool = false,
+                       prioritizeRecent: Bool = false, preserveWideDebt: Bool = false,
                        onPersisted: (() -> Void)? = nil) async {
         // An interrupted full-history pass must retain its owed window.
-        let maxDays = RescoreBackgroundScheduler.isRescoreOwed
+        let maxDays = !prioritizeRecent && RescoreBackgroundScheduler.isRescoreOwed
             ? max(maxDays, RescoreBackgroundScheduler.owedWindowDays) : maxDays
         // #899-A: a concurrent pass already holds the lock. A NON-forced idle tick is safe to drop (the
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
@@ -819,11 +827,13 @@ final class IntelligenceEngine: ObservableObject {
                 RescoreBackgroundScheduler.schedule()
             } else if pendingForcedRescore {
                 pendingForcedRescore = false
-                // A forced update queued during the upgrade repair owes a normal recent pass,
-                // not another full-history repair (#2606). Its completion belongs to this pass.
+                // A new update during the history repair needs a recent pass. The repair's own
+                // completion callback belongs to the wide pass that just finished.
                 let followUpDays = preserveUnscoredHistory ? 21 : maxDays
                 Task {
-                    await self.analyzeRecent(maxDays: followUpDays, force: true)
+                    await self.analyzeRecent(maxDays: followUpDays, force: true,
+                                             prioritizeRecent: preserveUnscoredHistory || prioritizeRecent,
+                                             preserveWideDebt: preserveWideDebt)
                 }
             }
         }
@@ -3191,7 +3201,13 @@ final class IntelligenceEngine: ObservableObject {
         // background wake from one that never could, instead of guessing from a constant — the cost varies
         // by more than an order of magnitude with history size.
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds &- reScoreStart) / 1_000_000_000
-        let settled = RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed, owedToken: owedToken)
+        // The short pass has made the recent nights visible, but it has not repaired older history.
+        // Keep the original wide debt and its window; the following full pass settles it only after
+        // every required write succeeds. A concurrent offload's newer token is preserved as usual.
+        let retainedWideDebt = prioritizeRecent && preserveWideDebt && RescoreBackgroundScheduler.isRescoreOwed
+            && RescoreBackgroundScheduler.owedWindowDays > maxDays
+        let settled = retainedWideDebt ? false
+            : RescoreBackgroundScheduler.markRescoreCompleted(seconds: elapsed, owedToken: owedToken)
         diagnosticSink?("re-score: done — scored \(scoredNights.count) night(s) in \(Int(elapsed * 1000)) ms (#1005)", nil)
         diagnosticSink?(RescoreBackgroundScheduler.passCostLogLine(
             cpuSeconds: RescoreBackgroundScheduler.processCPUSeconds().flatMap { end in reScoreCPUStart.map { end - $0 } },
@@ -3201,12 +3217,14 @@ final class IntelligenceEngine: ObservableObject {
         // #1681: a pass that completes while leaving the mark SET looks identical in a capture to one that
         // cleared it. Rare-event evidence, so always-on: it costs a line only when it actually happens,
         // and it is exactly what is missing when someone reports the app re-scoring on every launch.
-        if !settled {
+        if retainedWideDebt {
+            diagnosticSink?("re-score: recent window saved; \(RescoreBackgroundScheduler.owedWindowDays)-day history repair remains owed", nil)
+        } else if !settled {
             diagnosticSink?("re-score: debt NOT settled — a newer re-score was recorded while this pass "
                             + "was running, so the mark stays and another pass will run (#1681)", nil)
         }
-        // New-data debt does not invalidate the repair writes that just succeeded (#2606).
-        // Cancellation and persistence failures still leave the repair flags unset.
+        // A newer offload does not invalidate a completed history repair. It gets the recent pass
+        // queued above, while this pass owns the older-history completion marker.
         if !Task.isCancelled { onPersisted?() }
     }
 
